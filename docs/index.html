@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+  <title>Demo Day Vote</title>
+  <style>
+    :root {
+      --otp-lime: #c1ff05;
+      --otp-purple: #9e6fc3;
+      --bg: #f4f5f1;
+      --ink: #171717;
+      --muted: #68666a;
+      --line: #dedcde;
+      font-family: Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #fff 0, #fff 110px, var(--bg) 110px);
+      color: var(--ink);
+    }
+
+    body::before {
+      content: "";
+      display: block;
+      height: 6px;
+      background: linear-gradient(90deg, var(--otp-lime), var(--otp-purple));
+    }
+
+    main {
+      display: grid;
+      min-height: calc(100vh - 6px);
+      place-items: center;
+      padding: 24px;
+    }
+
+    section {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--otp-lime);
+      border-radius: 8px;
+      box-shadow: 0 18px 44px rgba(23, 23, 23, .10);
+      max-width: 680px;
+      padding: 28px;
+      width: 100%;
+    }
+
+    .brand {
+      align-items: center;
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 22px;
+    }
+
+    .mark {
+      background: var(--otp-lime);
+      border-radius: 8px;
+      color: var(--ink);
+      padding: 8px 11px;
+      font-weight: 900;
+    }
+
+    h1 {
+      font-size: clamp(34px, 8vw, 58px);
+      line-height: .98;
+      margin: 0 0 14px;
+    }
+
+    p {
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.55;
+      margin: 0 0 18px;
+    }
+
+    a {
+      align-items: center;
+      background: var(--otp-lime);
+      border-radius: 8px;
+      color: var(--ink);
+      display: inline-flex;
+      font-weight: 800;
+      min-height: 46px;
+      padding: 12px 18px;
+      text-decoration: none;
+    }
+
+    .secondary {
+      background: #fff;
+      border: 1px solid var(--line);
+      margin-left: 8px;
+    }
+
+    @media (max-width: 520px) {
+      section {
+        padding: 20px;
+      }
+
+      a {
+        justify-content: center;
+        margin: 0 0 10px;
+        width: 100%;
+      }
+
+      .secondary {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <div class="brand"><span class="mark">OTP</span><span>Demo Day</span></div>
+      <h1>Demo Day Vote</h1>
+      <p>Страница GitHub Pages для быстрого входа в голосование. Само приложение с базой голосов работает на отдельном сервере.</p>
+      <a href="http://194.87.74.241/">Открыть голосование</a>
+      <a class="secondary" href="http://194.87.74.241/admin">Кабинет организатора</a>
+    </section>
+  </main>
+</body>
+</html>
