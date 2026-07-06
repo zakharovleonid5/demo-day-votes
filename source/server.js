@@ -11,6 +11,7 @@ const adminPassword = process.env.ADMIN_PASSWORD || "change-me";
 const isProduction = process.env.NODE_ENV === "production";
 const adminSessions = new Set();
 const votingModes = new Set(["top1", "top3"]);
+const roundTwoFinalistsLimit = 6;
 
 const criteria = [
   {
@@ -290,10 +291,10 @@ function sameTiebreakBucket(a, b) {
 
 function calculateRoundTwoFinalists() {
   const firstRound = leaderboard(1).filter(talk => talk.stats.score > 0);
-  if (firstRound.length <= 3) return firstRound.map(talk => talk.id);
-  const cutoff = firstRound[2];
+  if (firstRound.length <= roundTwoFinalistsLimit) return firstRound.map(talk => talk.id);
+  const cutoff = firstRound[roundTwoFinalistsLimit - 1];
   return firstRound
-    .filter((talk, index) => index < 3 || sameTiebreakBucket(talk, cutoff))
+    .filter((talk, index) => index < roundTwoFinalistsLimit || sameTiebreakBucket(talk, cutoff))
     .map(talk => talk.id);
 }
 

@@ -282,6 +282,71 @@ test("admin can run a second round without mixing votes", async () => {
   await close();
 });
 
+test("second round includes top six and full ties at sixth place", async () => {
+  const port = await listen();
+  const base = `http://127.0.0.1:${port}`;
+
+  try {
+    const loginResponse = await fetch(`${base}/api/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: "secret" })
+    });
+    const cookie = loginResponse.headers.get("set-cookie");
+
+    await fetch(`${base}/api/admin/event/mode`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie },
+      body: JSON.stringify({ votingMode: "top1" })
+    });
+    await fetch(`${base}/api/admin/event/round`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie },
+      body: JSON.stringify({ round: 1 })
+    });
+    await fetch(`${base}/api/admin/votes/reset`, { method: "POST", headers: { cookie } });
+
+    const voterResponse = await fetch(`${base}/api/admin/voters`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie },
+      body: JSON.stringify({ name: "Tie Finalists Tester" })
+    });
+    const voter = (await voterResponse.json()).voters.at(-1);
+    const state = await fetch(`${base}/api/public`, {
+      headers: { Authorization: `Bearer ${voter.token}` }
+    }).then(res => res.json());
+    const tiedTalkIds = state.talks.slice(0, 7).map(talk => talk.id);
+
+    for (const [index, talkId] of tiedTalkIds.entries()) {
+      const response = index === 0
+        ? { voters: [voter] }
+        : await fetch(`${base}/api/admin/voters`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", cookie },
+          body: JSON.stringify({ name: `Tie Finalists Tester ${index + 1}` })
+        }).then(res => res.json());
+      const currentVoter = response.voters.at(-1);
+      const voteResponse = await fetch(`${base}/api/votes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentVoter.token}` },
+        body: JSON.stringify({ talkId })
+      });
+      assert.equal(voteResponse.status, 200);
+    }
+
+    const switchResponse = await fetch(`${base}/api/admin/event/round`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie },
+      body: JSON.stringify({ round: 2 })
+    });
+    assert.equal(switchResponse.status, 200);
+    const roundTwoState = await switchResponse.json();
+    assert.deepEqual(roundTwoState.talks.map(talk => talk.id), tiedTalkIds);
+  } finally {
+    await close();
+  }
+});
+
 test("common link stores one vote per device", async () => {
   const port = await listen();
   const base = `http://127.0.0.1:${port}`;
