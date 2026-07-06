@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo Day Admin</title>
+  <link rel="stylesheet" href="/styles.css?v=20260629-progress1">
+</head>
+<body>
+  <main class="admin-shell">
+    <section id="login" class="login-panel">
+      <h1>Кабинет организатора</h1>
+      <form id="loginForm" class="dialog-form">
+        <label>Пароль администратора<input name="password" type="password" required></label>
+        <p id="loginError" class="error"></p>
+        <button type="submit">Войти</button>
+      </form>
+    </section>
+
+    <section id="dashboard" hidden>
+      <header class="admin-top">
+        <div>
+          <div class="brand-lockup"><span class="brand-mark">ОТП</span><span>Банк · Demo Day</span></div>
+          <p class="eyebrow">Demo Day</p>
+          <h1>Голосование и результаты</h1>
+        </div>
+        <button id="refresh" type="button">Обновить</button>
+      </header>
+
+      <section id="metrics" class="metrics"></section>
+
+      <section class="admin-panel mode-panel">
+        <div>
+          <h2>Раунд голосования</h2>
+          <p class="muted" id="roundHint">Выбери активный раунд. Голоса разных раундов хранятся отдельно.</p>
+        </div>
+        <div class="mode-switch" role="group" aria-label="Раунд голосования">
+          <button type="button" data-round="1">Раунд 1</button>
+          <button type="button" data-round="2">Раунд 2</button>
+        </div>
+      </section>
+
+      <section class="admin-panel mode-panel">
+        <div>
+          <h2>Режим голосования</h2>
+          <p class="muted" id="modeHint">Выбери, сколько инициатив должен отметить каждый член жюри.</p>
+        </div>
+        <div class="mode-switch" role="group" aria-label="Режим голосования">
+          <button type="button" data-mode="top1">Топ-1</button>
+          <button type="button" data-mode="top3">Топ-3 инициативы</button>
+        </div>
+      </section>
+
+      <section class="admin-panel voting-progress-panel">
+        <div class="panel-heading">
+          <h2>Статус голосования</h2>
+          <span id="progressBadge" class="progress-badge">0 из 0</span>
+        </div>
+        <div id="votingProgress" class="voting-progress"></div>
+      </section>
+
+      <section class="admin-grid">
+        <form id="talkForm" class="admin-panel">
+          <h2>Добавить выступление</h2>
+          <label>Название<input name="title" required placeholder="Введите название доклада"></label>
+          <label>Спикер / команда<input name="speaker" placeholder="Введите название команды"></label>
+          <label>Описание<textarea name="description" rows="3" placeholder="Что показывают"></textarea></label>
+          <button type="submit">Добавить</button>
+        </form>
+
+        <div class="admin-panel">
+          <h2>Порядок докладов</h2>
+          <div id="activeTalks" class="active-list"></div>
+        </div>
+      </section>
+
+      <section class="admin-panel">
+        <h2>Члены жюри</h2>
+        <article class="voter-row common-link-row">
+          <div>
+            <strong>Общая ссылка</strong>
+            <div class="muted">Каждое устройство сохранит свой выбор отдельно</div>
+          </div>
+          <input id="commonVoteLink" readonly value="" aria-label="Общая ссылка для голосования">
+          <button id="copyCommonLink" class="ghost copy-link" type="button" data-link="">Скопировать</button>
+        </article>
+        <form id="voterForm" class="inline-form">
+          <label>ФИО члена жюри<input name="name" required placeholder="Иван Иванов"></label>
+          <button type="submit">Добавить и создать ссылку</button>
+        </form>
+        <div id="voters" class="voter-list"></div>
+      </section>
+
+      <section class="admin-panel">
+        <div class="panel-heading">
+          <h2 id="leaderboardTitle">Лидерборд</h2>
+          <button id="resetVotes" class="ghost danger-text" type="button">Сбросить голоса</button>
+        </div>
+        <div id="leaderboard" class="leaderboard"></div>
+      </section>
+
+      <section class="admin-panel">
+        <h2 id="matrixTitle">Матрица голосов</h2>
+        <div class="table-scroll">
+          <table>
+            <thead id="votesHead"></thead>
+            <tbody id="votesBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+  <dialog id="confirmDialog" class="confirm-dialog">
+    <form method="dialog" class="confirm-card">
+      <div class="confirm-icon" aria-hidden="true">!</div>
+      <div>
+        <p class="eyebrow">Подтверждение</p>
+        <h2 id="confirmTitle">Подтвердите действие</h2>
+        <p id="confirmMessage" class="muted"></p>
+      </div>
+      <div class="confirm-actions">
+        <button id="confirmCancel" class="ghost" type="button">Отмена</button>
+        <button id="confirmOk" type="submit">ОК</button>
+      </div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/admin.js?v=20260706-finalists1"></script>
+</body>
+</html>
