@@ -160,6 +160,19 @@ function renderTalks() {
   const ready = selectedTalkIds.length === limit;
   const showSaveWidget = ready && hasDraftSelection;
   document.querySelector("#talks").innerHTML = `
+    ${limit === 3 ? `
+      <section class="points-explainer" aria-label="Условия распределения баллов">
+        <div>
+          <span class="points-kicker">Как считаются баллы</span>
+          <strong>Чем выше место, тем больше вклад в итоговый рейтинг.</strong>
+        </div>
+        <div class="points-grid">
+          <span><b>1 место</b><em>2 балла</em></span>
+          <span><b>2 место</b><em>1 балл</em></span>
+          <span><b>3 место</b><em>1 балл</em></span>
+        </div>
+      </section>
+    ` : ""}
     <div class="best-choice-list">
       ${state.talks.map(talk => {
         const selectedIndex = selectedTalkIds.indexOf(talk.id);
