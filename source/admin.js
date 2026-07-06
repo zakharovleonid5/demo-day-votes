@@ -232,7 +232,7 @@ function render() {
         <strong>#${index + 1}</strong>
         <div>
           <strong>${esc(talk.title)}</strong>
-          ${isTop3 ? `<small>1 мест: ${talk.stats.firstPlaces || 0} · 2 мест: ${talk.stats.secondPlaces || 0}</small>` : ""}
+          ${isTop3 ? `<small>1 мест: ${talk.stats.firstPlaces || 0} · 2 мест: ${talk.stats.secondPlaces || 0} · 3 мест: ${talk.stats.thirdPlaces || 0}</small>` : ""}
           <div class="bar"><span style="width:${percent}%"></span></div>
         </div>
         <span>${value}</span>

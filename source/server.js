@@ -267,7 +267,8 @@ function talkStats(talkId, round = currentRound()) {
   const score = votes.reduce((sum, vote) => sum + voteWeight(vote, talkId), 0);
   const firstPlaces = votes.filter(vote => voteTalkIds(vote).indexOf(talkId) === 0).length;
   const secondPlaces = votes.filter(vote => voteTalkIds(vote).indexOf(talkId) === 1).length;
-  return { votesCount: votes.length, score, total: score, firstPlaces, secondPlaces };
+  const thirdPlaces = votes.filter(vote => voteTalkIds(vote).indexOf(talkId) === 2).length;
+  return { votesCount: votes.length, score, total: score, firstPlaces, secondPlaces, thirdPlaces };
 }
 
 function leaderboard(round = currentRound()) {
