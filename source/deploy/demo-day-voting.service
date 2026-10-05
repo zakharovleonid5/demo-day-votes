@@ -1,0 +1,22 @@
+[Unit]
+Description=Demo Day Voting
+After=network.target
+
+[Service]
+Type=simple
+User=demo-day
+Group=demo-day
+WorkingDirectory=/opt/demo-day-voting/current
+EnvironmentFile=/etc/demo-day-voting.env
+ExecStart=/usr/local/bin/node server.js
+Restart=on-failure
+RestartSec=3
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/demo-day-voting
+
+[Install]
+WantedBy=multi-user.target

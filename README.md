@@ -1,11 +1,18 @@
 # Demo Day Voting
 
-GitHub Pages entry page for the Demo Day voting app.
+Demo Day voting app and configuration for the existing Vercel project.
 
 The live voting backend currently runs on the VPS:
 
-- Voting: http://194.87.74.241/
-- Admin: http://194.87.74.241/admin
+- Voting: https://demo-day-votes.vercel.app/?public=1
+- Admin: https://demo-day-votes.vercel.app/admin
+- HTTPS origin: https://194-87-103-89.sslip.io
+
+Vercel forwards requests to the VPS over HTTPS. The Node.js server and persistent
+JSON database run on the VPS, not in Vercel Functions. Source code, tests and
+deployment documentation are in `source/`. Database files and passwords are not
+stored in this repository. Updating `source/` alone does not update the VPS:
+deploy the server release first, then publish the Vercel configuration.
 
 ## GitHub Pages setup
 

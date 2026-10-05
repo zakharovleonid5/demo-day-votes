@@ -1,130 +1,115 @@
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Demo Day Admin</title>
-  <link rel="stylesheet" href="/styles.css?v=20260706-points1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo Day · Организатор</title>
+<link rel="stylesheet" href="/styles.css?v=20261005"><link rel="stylesheet" href="/admin.css?v=20261005">
 </head>
-<body>
-  <main class="admin-shell">
-    <section id="login" class="login-panel">
-      <h1>Кабинет организатора</h1>
-      <form id="loginForm" class="dialog-form">
-        <label>Пароль администратора<input name="password" type="password" required></label>
-        <p id="loginError" class="error"></p>
-        <button type="submit">Войти</button>
-      </form>
-    </section>
-
-    <section id="dashboard" hidden>
-      <header class="admin-top">
-        <div>
-          <div class="brand-lockup"><span class="brand-mark">ОТП</span><span>Банк · Demo Day</span></div>
-          <p class="eyebrow">Demo Day</p>
-          <h1>Голосование и результаты</h1>
+<body class="organizer-app">
+<section id="login" class="login-panel">
+  <div class="brand-lockup"><span class="brand-mark">ОТП</span><span>demo day.</span></div>
+  <h1>Вход организатора</h1><p class="muted">Программа, участники и результаты Demo Day.</p>
+  <form id="loginForm" class="dialog-form">
+    <label>Логин<input name="login" required autocomplete="username" placeholder="Логин или почта"></label>
+    <label>Пароль<input name="password" type="password" required autocomplete="current-password"></label>
+    <p id="loginError" class="error" role="alert"></p><button type="submit">Войти</button>
+  </form>
+</section>
+<div id="dashboard" class="organizer-layout" hidden>
+  <aside class="organizer-sidebar">
+    <div class="sidebar-title">Кабинет организатора</div>
+    <nav class="admin-tabs" role="tablist" aria-label="Разделы кабинета" aria-orientation="vertical">
+      <button id="tab-talks" role="tab" aria-controls="panel-talks" aria-selected="true" data-tab="talks"><span class="nav-symbol" aria-hidden="true">01</span>Выступления</button>
+      <button id="tab-jury" role="tab" aria-controls="panel-jury" aria-selected="false" tabindex="-1" data-tab="jury"><span class="nav-symbol" aria-hidden="true">02</span>Жюри</button>
+      <button id="tab-events" role="tab" aria-controls="panel-events" aria-selected="false" tabindex="-1" data-tab="events"><span class="nav-symbol" aria-hidden="true">03</span>События</button>
+      <button id="tab-organizers" role="tab" aria-controls="panel-organizers" aria-selected="false" tabindex="-1" data-tab="organizers"><span class="nav-symbol" aria-hidden="true">04</span>Организаторы</button>
+    </nav>
+    <div class="sidebar-bottom"><a class="vote-link" href="/?public=1" target="_blank" rel="noopener">Открыть голосование <span aria-hidden="true">↗</span></a><p>Люди. Идеи. Результаты.</p></div>
+  </aside>
+  <div class="organizer-workspace">
+    <header class="workspace-topbar"><span>Demo Day / <span id="breadcrumb">Выступления</span></span><div class="account-menu"><span class="user-avatar" id="userAvatar" aria-hidden="true">О</span><span id="currentUser">Организатор</span><button id="logout" class="ghost" type="button">Выйти</button></div></header>
+    <main class="organizer-main">
+      <header class="page-heading"><div><p class="eyebrow">УПРАВЛЕНИЕ СОБЫТИЕМ</p><h1 id="eventTitle">Demo Day</h1><p class="muted" id="pageDescription">Программа выступлений и настройки голосования.</p></div><button id="refresh" class="ghost" type="button" title="Обновить данные">Обновить</button></header>
+      <section id="panel-talks" role="tabpanel" aria-labelledby="tab-talks" tabindex="0">
+        <div class="settings-grid">
+          <section class="setting-block"><h2>Раунд голосования</h2><div class="mode-switch" role="group" aria-label="Раунд голосования"><button type="button" data-round="1">Раунд 1</button><button type="button" data-round="2">Раунд 2</button></div><p class="muted" id="roundHint"></p></section>
+          <section class="setting-block"><h2>Режим голосования</h2><div class="mode-switch" role="group" aria-label="Режим голосования"><button type="button" data-mode="top1">Топ-1</button><button type="button" data-mode="top3">Топ-3 инициативы</button></div><p class="muted" id="modeHint"></p></section>
         </div>
-        <button id="refresh" type="button">Обновить</button>
-      </header>
-
-      <section id="metrics" class="metrics"></section>
-
-      <section class="admin-panel mode-panel">
-        <div>
-          <h2>Раунд голосования</h2>
-          <p class="muted" id="roundHint">Выбери активный раунд. Голоса разных раундов хранятся отдельно.</p>
-        </div>
-        <div class="mode-switch" role="group" aria-label="Раунд голосования">
-          <button type="button" data-round="1">Раунд 1</button>
-          <button type="button" data-round="2">Раунд 2</button>
-        </div>
+        <div class="section-heading"><div><h2>Программа выступлений <span id="programCount" class="count-tag">0</span></h2><p class="muted">Порядок докладов в анкете жюри.</p></div><button id="addTalk" type="button">Добавить выступление</button></div>
+        <div id="activeTalks" class="active-list"></div>
       </section>
-
-      <section class="admin-panel mode-panel">
-        <div>
-          <h2>Режим голосования</h2>
-          <p class="muted" id="modeHint">Выбери, сколько инициатив должен отметить каждый член жюри.</p>
-        </div>
-        <div class="mode-switch" role="group" aria-label="Режим голосования">
-          <button type="button" data-mode="top1">Топ-1</button>
-          <button type="button" data-mode="top3">Топ-3 инициативы</button>
-        </div>
-      </section>
-
-      <section class="admin-panel voting-progress-panel">
-        <div class="panel-heading">
-          <h2>Статус голосования</h2>
-          <span id="progressBadge" class="progress-badge">0 из 0</span>
-        </div>
-        <div id="votingProgress" class="voting-progress"></div>
-      </section>
-
-      <section class="admin-grid">
-        <form id="talkForm" class="admin-panel">
-          <h2>Добавить выступление</h2>
-          <label>Название<input name="title" required placeholder="Введите название доклада"></label>
-          <label>Спикер / команда<input name="speaker" placeholder="Введите название команды"></label>
-          <label>Описание<textarea name="description" rows="3" placeholder="Что показывают"></textarea></label>
-          <button type="submit">Добавить</button>
-        </form>
-
-        <div class="admin-panel">
-          <h2>Порядок докладов</h2>
-          <div id="activeTalks" class="active-list"></div>
-        </div>
-      </section>
-
-      <section class="admin-panel">
-        <h2>Члены жюри</h2>
-        <article class="voter-row common-link-row">
-          <div>
-            <strong>Общая ссылка</strong>
-            <div class="muted">Каждое устройство сохранит свой выбор отдельно</div>
-          </div>
-          <input id="commonVoteLink" readonly value="" aria-label="Общая ссылка для голосования">
-          <button id="copyCommonLink" class="ghost copy-link" type="button" data-link="">Скопировать</button>
-        </article>
-        <form id="voterForm" class="inline-form">
-          <label>ФИО члена жюри<input name="name" required placeholder="Иван Иванов"></label>
-          <button type="submit">Добавить и создать ссылку</button>
-        </form>
+      <section id="panel-jury" role="tabpanel" aria-labelledby="tab-jury" tabindex="0" hidden>
+        <div class="section-heading"><div><h2>Члены жюри</h2><p class="muted">Персональные ссылки и статус участия.</p></div></div>
+        <article class="voter-row common-link-row"><div><strong>Общая ссылка</strong><div class="muted">Один выбор на устройство</div></div><input id="commonVoteLink" readonly aria-label="Общая ссылка для голосования"><div class="link-actions"><button id="copyCommonLink" class="ghost copy-link" type="button" data-link="">Скопировать</button><button class="ghost show-qr" type="button" data-voter="">QR-код</button></div></article>
+        <form id="voterForm" class="inline-form"><label>ФИО члена жюри<input name="name" required minlength="3" maxlength="100" placeholder="Иван Иванов"></label><button type="submit">Добавить и создать ссылку</button></form>
         <div id="voters" class="voter-list"></div>
       </section>
-
-      <section class="admin-panel">
-        <div class="panel-heading">
-          <h2 id="leaderboardTitle">Лидерборд</h2>
-          <button id="resetVotes" class="ghost danger-text" type="button">Сбросить голоса</button>
-        </div>
-        <div id="leaderboard" class="leaderboard"></div>
+      <section id="panel-events" role="tabpanel" aria-labelledby="tab-events" tabindex="0" hidden>
+        <div class="section-heading"><div><h2>События</h2><p id="newEventHint" class="muted">Чтобы создать новое событие, завершите текущее.</p></div><button id="newEvent" type="button" aria-describedby="newEventHint" disabled>Создать событие</button></div>
+        <section class="event-strip" aria-label="Текущее событие"><span id="eventStatus" class="status-tag">Голосование открыто</span><span id="eventRound">Раунд 1</span><span class="event-progress" id="eventProgress"></span><button id="completeEvent" class="ghost" type="button">Завершить событие</button></section>
+        <section class="ballot-settings" aria-labelledby="ballotSettingsTitle"><div><h2 id="ballotSettingsTitle">Анкета голосования</h2><p id="ballotIntroPreview" class="muted"></p></div><div class="link-actions"><button id="editEventPresentation" class="ghost" type="button">Изменить название и шапку</button><a class="vote-link" href="/?public=1" target="_blank" rel="noopener">Открыть анкету ↗</a></div></section>
+        <details id="currentStatistics" class="event-statistics">
+        <summary>Статистика текущего события</summary>
+        <section id="metrics" class="metrics" aria-label="Метрики"></section>
+        <section class="report-section"><div class="panel-heading"><h2>Статус голосования</h2><span id="progressBadge" class="progress-badge">0 из 0</span></div><div id="votingProgress" class="voting-progress"></div></section>
+        <section class="report-section"><div class="panel-heading"><h2 id="leaderboardTitle">Лидерборд</h2><button id="resetVotes" class="ghost danger-text" type="button">Сбросить голоса</button></div><div id="leaderboard" class="leaderboard"></div></section>
+        <section class="report-section"><h2 id="matrixTitle">Матрица голосов</h2><div class="table-scroll"><table><thead id="votesHead"></thead><tbody id="votesBody"></tbody></table></div></section>
+        </details>
+        <section class="report-section" aria-labelledby="pastEventsTitle">
+          <div class="section-heading"><div><h2 id="pastEventsTitle">Завершённые события</h2><p class="muted">Программы, статистика и результаты каждого раунда.</p></div></div>
+          <div id="historyList" class="history-list"></div><section id="historyDetail" class="report-section" hidden aria-live="polite"></section>
+        </section>
       </section>
-
-      <section class="admin-panel">
-        <h2 id="matrixTitle">Матрица голосов</h2>
-        <div class="table-scroll">
-          <table>
-            <thead id="votesHead"></thead>
-            <tbody id="votesBody"></tbody>
-          </table>
-        </div>
+      <section id="panel-organizers" role="tabpanel" aria-labelledby="tab-organizers" tabindex="0" hidden>
+        <div class="section-heading"><div><h2>Организаторы</h2><p class="muted">Каждый входит со своим логином и паролем.</p></div><button id="addOrganizer" type="button">Добавить нового организатора</button></div>
+        <div id="organizers" class="people-list"></div>
       </section>
-    </section>
-  </main>
-  <dialog id="confirmDialog" class="confirm-dialog">
-    <form method="dialog" class="confirm-card">
-      <div class="confirm-icon" aria-hidden="true">!</div>
-      <div>
-        <p class="eyebrow">Подтверждение</p>
-        <h2 id="confirmTitle">Подтвердите действие</h2>
-        <p id="confirmMessage" class="muted"></p>
-      </div>
-      <div class="confirm-actions">
-        <button id="confirmCancel" class="ghost" type="button">Отмена</button>
-        <button id="confirmOk" type="submit">ОК</button>
-      </div>
-    </form>
-  </dialog>
-  <div id="toast" class="toast" role="status"></div>
-  <script src="/admin.js?v=20260706-places1"></script>
-</body>
-</html>
+    </main>
+  </div>
+</div>
+<dialog id="talkDialog" class="editor-dialog"><form id="talkForm" class="dialog-form">
+  <div class="panel-heading"><h2 id="talkDialogTitle">Новое выступление</h2><button type="button" class="ghost icon-button" data-close="talkDialog" aria-label="Закрыть" title="Закрыть">×</button></div>
+  <label>Название<input name="title" required maxlength="300" placeholder="Введите название доклада"></label>
+  <label>Спикер / команда<input name="speaker" maxlength="300" placeholder="Имя спикера и команда"></label>
+  <label>Описание<textarea name="description" rows="3" maxlength="600" placeholder="Что показывают"></textarea></label>
+  <p class="error" data-form-error role="alert"></p><div class="dialog-actions"><button type="button" class="ghost" data-close="talkDialog">Отмена</button><button type="submit">Добавить</button></div>
+</form></dialog>
+<dialog id="organizerDialog" class="editor-dialog"><form id="organizerForm" class="dialog-form">
+  <div class="panel-heading"><h2>Новый организатор</h2><button type="button" class="ghost icon-button" data-close="organizerDialog" aria-label="Закрыть" title="Закрыть">×</button></div>
+  <label>Имя<input name="name" required maxlength="100" placeholder="Иван Иванов" autocomplete="name"></label>
+  <label>Логин<input name="login" required minlength="3" maxlength="100" placeholder="ivan.ivanov или почта" autocomplete="username"></label>
+  <label>Пароль<input name="password" type="password" required minlength="10" maxlength="256" placeholder="Не менее 10 символов" autocomplete="new-password"></label>
+  <p class="muted">Все организаторы могут управлять голосованием и доступом коллег.</p>
+  <p class="error" data-form-error role="alert"></p><div class="dialog-actions"><button type="button" class="ghost" data-close="organizerDialog">Отмена</button><button type="submit">Создать аккаунт</button></div>
+</form></dialog>
+<dialog id="presentationDialog" class="editor-dialog" aria-labelledby="presentationTitle"><form id="presentationForm" class="dialog-form">
+  <div class="panel-heading"><h2 id="presentationTitle">Название и шапка анкеты</h2><button type="button" class="ghost icon-button" data-close="presentationDialog" aria-label="Закрыть" title="Закрыть">×</button></div>
+  <label>Название голосования<input name="title" required maxlength="300" placeholder="Demo Day · IV квартал"></label>
+  <label>Текст под заголовком<textarea name="votingIntro" rows="4" maxlength="600" placeholder="Приглашение к голосованию для жюри"></textarea></label>
+  <p class="muted">Если оставить текст пустым, покажем стандартную инструкцию для выбранного режима голосования.</p>
+  <p class="error" data-form-error role="alert"></p><div class="dialog-actions"><button type="button" class="ghost" data-close="presentationDialog">Отмена</button><button type="submit">Сохранить изменения</button></div>
+</form></dialog>
+<dialog id="passwordDialog" class="editor-dialog" aria-labelledby="passwordTitle"><form id="passwordForm" class="dialog-form">
+  <div class="panel-heading"><h2 id="passwordTitle">Сменить пароль</h2><button type="button" class="ghost icon-button" data-close="passwordDialog" aria-label="Закрыть" title="Закрыть">×</button></div>
+  <p id="passwordAccount" class="muted"></p>
+  <label>Ваш текущий пароль<input name="currentPassword" type="password" required maxlength="256" autocomplete="current-password"></label>
+  <label>Новый пароль<input name="password" type="password" required minlength="10" maxlength="256" autocomplete="new-password" placeholder="Не менее 10 символов"></label>
+  <label>Повторите новый пароль<input name="confirmation" type="password" required minlength="10" maxlength="256" autocomplete="new-password"></label>
+  <p class="muted">Остальные сессии этого аккаунта будут завершены.</p>
+  <p class="error" data-form-error role="alert"></p><div class="dialog-actions"><button type="button" class="ghost" data-close="passwordDialog">Отмена</button><button type="submit">Сохранить пароль</button></div>
+</form></dialog>
+<dialog id="qrDialog" class="editor-dialog" aria-labelledby="qrTitle">
+  <div class="panel-heading"><h2 id="qrTitle">QR-код голосования</h2><button type="button" class="ghost icon-button" data-close="qrDialog" aria-label="Закрыть" title="Закрыть">×</button></div>
+  <p id="qrDescription" class="muted"></p><p id="qrStatus" role="status"></p>
+  <img id="qrImage" class="qr-image" alt="QR-код ссылки на голосование" width="360" height="360" hidden>
+  <label>Ссылка<input id="qrLink" readonly></label><p id="qrLocalWarning" class="muted" hidden>Это локальный адрес: с телефона он не откроется. Для раздачи QR-кода откройте кабинет по публичному адресу после публикации.</p>
+  <div class="dialog-actions"><button type="button" class="ghost" id="qrRetry" hidden>Повторить</button><button type="button" id="qrDownload" disabled>Скачать PNG</button></div>
+</dialog>
+<dialog id="eventDialog" class="editor-dialog"><form id="eventForm" class="dialog-form">
+  <div class="panel-heading"><h2>Новое голосование</h2><button type="button" class="ghost icon-button" data-close="eventDialog" aria-label="Закрыть" title="Закрыть">×</button></div>
+  <label>Название события<input name="title" required maxlength="140" placeholder="Demo Day · IV квартал"></label><p class="muted">Добавьте программу и создайте новые ссылки жюри. Предыдущее событие останется в истории.</p>
+  <p class="error" data-form-error role="alert"></p><div class="dialog-actions"><button type="button" class="ghost" data-close="eventDialog">Отмена</button><button type="submit">Создать голосование</button></div>
+</form></dialog>
+<dialog id="confirmDialog" class="confirm-dialog"><form method="dialog" class="confirm-card"><div class="confirm-icon" aria-hidden="true">!</div><div><p class="eyebrow">Подтверждение</p><h2 id="confirmTitle">Подтвердите действие</h2><p id="confirmMessage" class="muted"></p></div><div class="confirm-actions"><button id="confirmCancel" class="ghost" type="button">Отмена</button><button id="confirmOk" type="submit">ОК</button></div></form></dialog>
+<div id="toast" class="toast" role="status"></div><script src="/admin.js?v=20261005"></script>
+</body></html>

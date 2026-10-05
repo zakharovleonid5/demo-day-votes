@@ -1,0 +1,6 @@
+[Unit]
+Description=Snapshot Demo Day database
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/demo-day-backup

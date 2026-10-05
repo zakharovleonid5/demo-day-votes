@@ -1,6 +1,11 @@
 const tokenKey = "demo-day-voter-token";
 const deviceKey = "demo-day-device-id";
-const urlToken = new URLSearchParams(location.search).get("token");
+const urlParams = new URLSearchParams(location.search);
+const urlToken = urlParams.get("token");
+if (urlParams.get("public") === "1" && !urlToken) {
+  localStorage.removeItem(tokenKey);
+  history.replaceState(null, "", location.pathname);
+}
 
 if (urlToken) {
   localStorage.setItem(tokenKey, urlToken);
@@ -20,6 +25,7 @@ let commentDraft = "";
 let hasDraftSelection = false;
 let editingSavedVote = false;
 let loadedRound = null;
+let loadedEvent = null;
 
 const api = async (path, options = {}) => {
   try {
@@ -71,32 +77,36 @@ function talksById() {
   return new Map((state?.talks || []).map(talk => [talk.id, talk]));
 }
 
-function modeTitle() {
-  const round = state?.event?.currentRound || 1;
-  return currentLimit() === 3 ? `Раунд ${round}: выбери топ-3` : `Раунд ${round}: выбери лучший доклад`;
-}
-
 function modeNote() {
   return currentLimit() === 3
     ? "Выбери три доклада, которые считаешь лучшими. Выбор сохранится для этого устройства."
     : "Выбери один доклад, который считаешь лучшим. Выбор сохранится для этого устройства.";
 }
 
+function renderHeading() {
+  document.querySelector("#ballotTitle").textContent = state.event.title;
+  document.title = `${state.event.title} · Голосование`;
+  const completed = state.event.status === "completed";
+  document.querySelector("#ballotRound").textContent = completed ? "Завершено" : `Раунд ${state.event.currentRound || 1} · Топ-${currentLimit()}`;
+  document.querySelector("#ballotRound").classList.toggle("completed", completed);
+  document.querySelector("#modeNote").textContent = state.event.votingIntro || (completed ? "Спасибо за участие! Результаты сохранены." : modeNote());
+}
+
 async function load() {
   state = await api("/api/public");
   const limit = currentLimit();
   const round = state.event.currentRound || 1;
-  if (loadedRound !== null && loadedRound !== round) {
+  if (loadedRound !== null && (loadedRound !== round || loadedEvent !== state.event.id)) {
     selectedTalkIds = [];
     commentDraft = "";
     hasDraftSelection = false;
     editingSavedVote = false;
   }
   loadedRound = round;
+  loadedEvent = state.event.id;
   if (!hasDraftSelection) selectedTalkIds = savedTalkIds().slice(0, limit);
   if (!hasDraftSelection) commentDraft = state.myVote?.comment ?? commentDraft;
-  document.querySelector("h1").textContent = modeTitle();
-  document.querySelector("#modeNote").textContent = modeNote();
+  renderHeading();
   renderTalks();
 }
 
@@ -104,7 +114,7 @@ function renderResult() {
   const byId = talksById();
   const chosen = savedTalkIds().map((talkId, index) => ({ ...byId.get(talkId), place: index + 1 })).filter(item => item.id);
   const limit = currentLimit();
-  const label = limit === 3 ? "Твой топ-3 сохранен" : "Твой выбор сохранен";
+  const label = state.event.status === "completed" ? "Голосование завершено" : limit === 3 ? "Твой топ-3 сохранен" : "Твой выбор сохранен";
 
   document.querySelector("#talks").innerHTML = `
     <section class="vote-result">
@@ -120,7 +130,7 @@ function renderResult() {
             </article>
           `).join("")}
         </div>
-        <button class="ghost edit-vote" type="button">Изменить выбор</button>
+        ${state.event.status === "completed" ? "" : '<button class="ghost edit-vote" type="button">Изменить выбор</button>'}
       </div>
       <div class="public-leaderboard">
         <h2>Текущий топ-3</h2>
@@ -151,6 +161,19 @@ function renderResult() {
 }
 
 function renderTalks() {
+  if (state.event.status === "completed") {
+    if (state.myVote) renderResult();
+    else document.querySelector("#talks").innerHTML = '<section class="result-card"><h2>Голосование завершено</h2><p class="muted">Спасибо за участие! Организатор завершил событие. Приём голосов закрыт.</p></section>';
+    return;
+  }
+  if (token && !state.voter) {
+    document.querySelector("#talks").innerHTML = '<section class="result-card"><h2>Ссылка больше не действует</h2><p class="muted">Попросите организатора прислать приглашение на текущее событие.</p></section>';
+    return;
+  }
+  if (!state.talks.length) {
+    document.querySelector("#talks").innerHTML = '<section class="result-card"><h2>Программа готовится</h2><p class="muted">Доклады появятся, когда организатор добавит их в голосование.</p></section>';
+    return;
+  }
   if (state.myVote && !hasDraftSelection && !editingSavedVote) {
     renderResult();
     return;
@@ -214,6 +237,7 @@ function renderTalks() {
     }
     hasDraftSelection = true;
     renderTalks();
+    [...document.querySelectorAll(".best-talk")].find(item => item.dataset.talk === talkId)?.focus({ preventScroll: true });
   }));
   document.querySelector(".submit-vote")?.addEventListener("click", submitVote);
 }
@@ -221,10 +245,15 @@ function renderTalks() {
 async function submitVote() {
   const limit = currentLimit();
   if (selectedTalkIds.length !== limit) return toast(limit === 3 ? "Выбери ровно 3 инициативы." : "Выбери один лучший доклад.");
+  const button = document.querySelector(".submit-vote");
+  if (button?.disabled) return;
+  if (button) button.disabled = true;
   try {
     state = await api("/api/votes", {
       method: "POST",
       body: JSON.stringify({
+        eventId: state.event.id,
+        round: state.event.currentRound,
         talkId: limit === 1 ? selectedTalkIds[0] : undefined,
         talkIds: limit === 3 ? selectedTalkIds : undefined,
         comment: commentDraft
@@ -233,12 +262,20 @@ async function submitVote() {
     hasDraftSelection = false;
     editingSavedVote = false;
     selectedTalkIds = savedTalkIds();
+    renderHeading();
     renderResult();
     toast("Выбор сохранен.");
   } catch (error) {
     toast(error.message);
-  }
+  } finally { if (button) button.disabled = false; }
 }
 
 setInterval(() => load().catch(() => {}), 15000);
-load().catch(error => toast(error.message));
+async function initialLoad() {
+  try { await load(); }
+  catch (error) {
+    document.querySelector("#talks").innerHTML = `<section class="result-card"><h2>Не удалось загрузить голосование</h2><p class="muted">${esc(error.message)}</p><button class="ghost retry-voting" type="button">Повторить</button></section>`;
+    document.querySelector(".retry-voting").onclick = initialLoad;
+  }
+}
+initialLoad();

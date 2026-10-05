@@ -25,6 +25,43 @@ function voteTalkIds(vote) {
   return vote.talkId ? [vote.talkId] : [];
 }
 
+test("organizer accounts are private, unique, persistent and revocable", async () => {
+  const port = await listen();
+  const base = `http://127.0.0.1:${port}`;
+  const request = (url, method = "GET", input, cookie) => fetch(base + url, { method, headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) }, ...(input ? { body: JSON.stringify(input) } : {}) });
+  try {
+    const input = { login: "colleague@example.com", name: "Коллега", password: "colleague-password" };
+    assert.equal((await request("/api/admin/organizers", "POST", input)).status, 401);
+    const login = await request("/api/admin/login", "POST", { login: "admin", password: "secret" });
+    const cookie = login.headers.get("set-cookie");
+    const state = await request("/api/admin/state", "GET", null, cookie).then(r => r.json());
+    assert.equal(state.currentOrganizer.login, "admin");
+    assert.equal((await request(`/api/admin/organizers/${state.currentOrganizer.id}`, "DELETE", null, cookie)).status, 400);
+    assert.equal((await request("/api/admin/organizers", "POST", { ...input, password: "short" }, cookie)).status, 400);
+    const createdResponse = await request("/api/admin/organizers", "POST", input, cookie);
+    assert.equal(createdResponse.status, 201);
+    const created = await createdResponse.json();
+    assert.equal(JSON.stringify(created).includes("passwordHash"), false);
+    assert.equal(JSON.stringify(created).includes(input.password), false);
+    assert.equal((await request("/api/admin/organizers", "POST", { ...input, login: input.login.toUpperCase() }, cookie)).status, 409);
+    const stored = JSON.parse(fs.readFileSync(process.env.DATA_FILE, "utf8")).organizers.find(item => item.login === input.login);
+    assert.ok(stored.passwordHash && stored.salt);
+    assert.equal(stored.passwordHash.includes(input.password), false);
+    assert.equal((await request("/api/admin/login", "POST", { login: input.login, password: "wrong" })).status, 401);
+    const colleague = await request("/api/admin/login", "POST", { login: input.login.toUpperCase(), password: input.password });
+    assert.equal(colleague.status, 200);
+    const colleagueCookie = colleague.headers.get("set-cookie");
+    assert.equal((await request("/api/admin/state", "GET", null, colleagueCookie)).status, 200);
+    assert.equal((await request(`/api/admin/organizers/${stored.id}`, "DELETE", null, cookie)).status, 200);
+    assert.equal((await request("/api/admin/state", "GET", null, colleagueCookie)).status, 401);
+    await request("/api/admin/logout", "POST", null, cookie);
+    assert.equal((await request("/api/admin/state", "GET", null, cookie)).status, 401);
+    for (const file of ["/data/db.json", "/server.js", "/package.json", "/platform/.env.local", "/integration.test.js"]) assert.equal((await request(file)).status, 404);
+    const csrf = await fetch(base + "/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://other.example" }, body: JSON.stringify({ password: "secret" }) });
+    assert.equal(csrf.status, 403);
+  } finally { await close(); }
+});
+
 test("voter can choose one best talk and admin sees leaderboard", async () => {
   const port = await listen();
   const base = `http://127.0.0.1:${port}`;
@@ -558,4 +595,99 @@ test("admin state exposes voting progress without needing interim results", asyn
   } finally {
     await close();
   }
+});
+
+test("editing a talk preserves its identity, order and existing votes", async () => {
+  const port = await listen();
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    const login = await fetch(`${base}/api/admin/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: "secret" }) });
+    const cookie = login.headers.get("set-cookie");
+    const before = await fetch(`${base}/api/admin/state`, { headers: { cookie } }).then(r => r.json());
+    const talkId = voteTalkIds(before.votes[0])[0];
+    const talk = before.allTalks.find(t => t.id === talkId);
+    const patch = (data, auth = cookie, target = talkId) => fetch(`${base}/api/admin/talks/${target}`, { method: "PATCH", headers: { "Content-Type": "application/json", ...(auth ? { cookie: auth } : {}) }, body: JSON.stringify(data) });
+    assert.equal((await patch({ title: "Unauthorized" }, null)).status, 401);
+    assert.equal((await patch({ title: "  " })).status, 400);
+    assert.equal((await patch(null)).status, 400);
+    assert.equal((await patch({ title: "Missing" }, cookie, "unknown-id")).status, 404);
+    const response = await patch({ title: "Обновлённая фича & продукт", speaker: "Новая команда", description: "", id: "cannot-replace-id", order: 999 });
+    assert.equal(response.status, 200);
+    const after = await response.json();
+    const updated = after.allTalks.find(t => t.id === talkId);
+    assert.equal(updated.title, "Обновлённая фича & продукт");
+    assert.equal(updated.speaker, "Новая команда");
+    assert.equal(updated.description, "");
+    assert.equal(updated.order, talk.order);
+    assert.equal(after.allTalks.length, before.allTalks.length);
+    assert.deepEqual(after.votes, before.votes);
+    assert.deepEqual(after.leaderboard.find(t => t.id === talkId).stats, before.leaderboard.find(t => t.id === talkId).stats);
+    assert.equal(JSON.parse(fs.readFileSync(process.env.DATA_FILE, "utf8")).talks.find(t => t.id === talkId).title, updated.title);
+    assert.equal((await fetch(`${base}/api/public`).then(r => r.json())).talks.find(t => t.id === talkId).speaker, updated.speaker);
+  } finally { await close(); }
+});
+
+test("event history preserves both rounds; new events isolate votes and survive restart", async () => {
+  const port = await listen();
+  const base = `http://127.0.0.1:${port}`;
+  let archived;
+  let organizer;
+  const newCredentials = { name: "Persistent organizer", login: "persistent", password: "persistent-password" };
+  try {
+    const login = await fetch(`${base}/api/admin/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: "secret" }) });
+    const cookie = login.headers.get("set-cookie");
+    const request = (url, method = "GET", input) => fetch(base + url, { method, headers: { "Content-Type": "application/json", cookie }, ...(input ? { body: JSON.stringify(input) } : {}) });
+    const before = await request("/api/admin/state").then(r => r.json());
+    assert.equal((await request("/api/admin/events/new", "POST", { title: "Next" })).status, 409);
+    await request("/api/admin/organizers", "POST", newCredentials);
+    organizer = JSON.parse(fs.readFileSync(process.env.DATA_FILE, "utf8")).organizers.find(item => item.login === "persistent");
+    await request("/api/admin/events/complete", "POST");
+    const completed = await request("/api/admin/events/complete", "POST").then(r => r.json());
+    assert.equal(completed.history.length, 1);
+    assert.equal(completed.event.status, "completed");
+    assert.equal(completed.votingProgress.resultsLocked, false);
+    assert.equal((await request("/api/admin/talks", "POST", { title: "Blocked" })).status, 409);
+    assert.equal((await request(`/api/admin/talks/${before.talks[0].id}`, "PATCH", { title: "Blocked edit" })).status, 409);
+    assert.equal((await request("/api/admin/votes/reset", "POST")).status, 409);
+    const vote = await fetch(base + "/api/votes", { method: "POST", headers: { "Content-Type": "application/json", "X-Device-Id": "33333333-3333-4333-8333-333333333333" }, body: JSON.stringify({ talkIds: before.talks.slice(0, 3).map(t => t.id) }) });
+    assert.equal(vote.status, 409);
+    archived = await request(`/api/admin/history/${before.event.id}`).then(r => r.json());
+    assert.deepEqual(archived.snapshot.rounds, before.rounds);
+    assert.deepEqual(archived.snapshot.allTalks, before.allTalks);
+    assert.equal(archived.snapshot.allVotes.length, before.rounds.reduce((sum, r) => sum + r.votesCount, 0));
+    assert.equal(JSON.stringify(archived).includes("passwordHash"), false);
+    assert.equal(JSON.stringify(archived.snapshot.voters).includes('"token"'), false);
+    const next = await request("/api/admin/events/new", "POST", { title: "Next Demo" }).then(r => r.json());
+    assert.notEqual(next.event.id, before.event.id);
+    assert.equal(next.votes.length, 0);
+    assert.equal(next.voters.length, 0);
+    assert.equal(next.allTalks.length, 0);
+    assert.ok(next.organizers.some(item => item.id === organizer.id));
+    const program = [{ title: "New & safe <text>", speaker: "Speaker & team", description: "Hall 1" }, { title: "Second" }, { title: "Third" }];
+    const imported = await request("/api/admin/talks/import", "POST", { talks: program });
+    assert.equal(imported.status, 201);
+    const current = await imported.json();
+    assert.equal(current.talks[0].title, program[0].title);
+    assert.equal((await request("/api/admin/talks/import", "POST", { talks: program })).status, 409);
+    const oldLink = await fetch(base + "/api/votes", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${before.voters[0].token}`, "X-Device-Id": "33333333-3333-4333-8333-333333333333" }, body: JSON.stringify({ talkIds: current.talks.map(t => t.id) }) });
+    assert.equal(oldLink.status, 401);
+    const staleEvent = await fetch(base + "/api/votes", { method: "POST", headers: { "Content-Type": "application/json", "X-Device-Id": "33333333-3333-4333-8333-333333333333" }, body: JSON.stringify({ eventId: before.event.id, talkIds: current.talks.map(t => t.id) }) });
+    assert.equal(staleEvent.status, 409);
+    assert.deepEqual(await request(`/api/admin/history/${before.event.id}`).then(r => r.json()), archived);
+  } finally { await close(); }
+  delete require.cache[require.resolve("./server")];
+  const restarted = require("./server");
+  await new Promise(resolve => restarted.listen(0, resolve));
+  try {
+    const nextBase = `http://127.0.0.1:${restarted.address().port}`;
+    const login = await fetch(nextBase + "/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(newCredentials) });
+    assert.equal(login.status, 200);
+    const cookie = login.headers.get("set-cookie");
+    const state = await fetch(nextBase + "/api/admin/state", { headers: { cookie } }).then(r => r.json());
+    assert.equal(state.currentOrganizer.id, organizer.id);
+    assert.equal(state.event.title, "Next Demo");
+    assert.equal(state.allTalks.length, 3);
+    assert.deepEqual(await fetch(nextBase + `/api/admin/history/${archived.id}`, { headers: { cookie } }).then(r => r.json()), archived);
+    assert.equal((await fetch(nextBase + `/api/admin/history/${archived.id}`)).status, 401);
+  } finally { await new Promise(resolve => restarted.close(resolve)); }
 });

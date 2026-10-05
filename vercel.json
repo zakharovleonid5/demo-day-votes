@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "http://194.87.74.241/"
+      "destination": "https://194-87-103-89.sslip.io/"
     },
     {
       "source": "/:path*",
-      "destination": "http://194.87.74.241/:path*"
+      "destination": "https://194-87-103-89.sslip.io/:path*"
     }
   ],
   "headers": [

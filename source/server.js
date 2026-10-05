@@ -2,6 +2,9 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const QRCode = require("qrcode");
+const { promisify } = require("node:util");
+const scrypt = promisify(crypto.scrypt);
 
 const root = __dirname;
 const port = Number(process.env.PORT || 3100);
@@ -9,7 +12,11 @@ const host = process.env.HOST || "127.0.0.1";
 const dataFile = process.env.DATA_FILE || path.join(root, "data", "db.json");
 const adminPassword = process.env.ADMIN_PASSWORD || "change-me";
 const isProduction = process.env.NODE_ENV === "production";
-const adminSessions = new Set();
+const publicOrigin = process.env.PUBLIC_ORIGIN ? new URL(process.env.PUBLIC_ORIGIN).origin : null;
+const adminSessions = new Map();
+const loginAttempts = new Map();
+const passwordAttempts = new Map();
+const sessionDuration = 86400000;
 const votingModes = new Set(["top1", "top3"]);
 const roundTwoFinalistsLimit = 6;
 
@@ -139,6 +146,15 @@ function normalizeDb() {
   if (![1, 2].includes(Number(db.event.currentRound))) db.event.currentRound = 1;
   if (!Array.isArray(db.event.roundTwoFinalistIds)) db.event.roundTwoFinalistIds = [];
   db.votes ||= [];
+  db.history ||= [];
+  db.event.id ||= id();
+  db.event.status ||= "open";
+  if (!Array.isArray(db.organizers) || !db.organizers.length) {
+    const salt = crypto.randomBytes(16).toString("hex");
+    db.organizers = [{ id: id(), login: (process.env.ADMIN_LOGIN || "admin").trim().toLowerCase(), name: "Организатор", salt,
+      passwordHash: crypto.scryptSync(adminPassword, salt, 64).toString("hex"), createdAt: new Date().toISOString() }];
+    saveDb();
+  }
 }
 
 normalizeDb();
@@ -194,13 +210,7 @@ async function body(req) {
 }
 
 function safeText(value, max = 180) {
-  return typeof value === "string" ? value.trim().slice(0, max).replace(/[&<>"']/g, char => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "\"": "&quot;",
-    "'": "&#39;"
-  })[char]) : "";
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
 function bearer(req) {
@@ -219,18 +229,35 @@ function deviceId(req) {
 function voteOwner(req) {
   const voter = currentVoter(req);
   if (voter) return { voter, deviceId: null };
+  if (bearer(req)) return { voter: null, deviceId: null };
   const currentDeviceId = deviceId(req);
   if (currentDeviceId) return { voter: null, deviceId: currentDeviceId };
   return { voter: null, deviceId: null };
 }
 
-function isAdmin(req) {
+function adminToken(req) {
   const token = (req.headers.cookie || "")
     .split(";")
     .map(item => item.trim())
     .find(item => item.startsWith("admin_session="))
     ?.split("=")[1];
-  return token && adminSessions.has(token);
+  return token;
+}
+
+function currentAdmin(req) {
+  const token = adminToken(req);
+  const session = adminSessions.get(token);
+  if (!session) return null;
+  if (session.expiresAt <= Date.now()) { adminSessions.delete(token); return null; }
+  return db.organizers.find(item => item.id === session.organizerId) || null;
+}
+
+function isAdmin(req) {
+  return Boolean(currentAdmin(req));
+}
+
+function publicOrganizer(item) {
+  return { id: item.id, login: item.login, name: item.name, createdAt: item.createdAt };
 }
 
 function selectionLimit(mode = db.event.votingMode) {
@@ -350,7 +377,7 @@ function publicState(owner) {
   };
 }
 
-function adminState() {
+function adminState(req) {
   const round = currentRound();
   const votes = visibleVotes(round);
   const votedVoterIds = new Set(votes.map(vote => vote.voterId).filter(Boolean));
@@ -363,9 +390,12 @@ function adminState() {
     voted: votedVoterIds.size,
     pending: pendingVoters,
     deviceVotesCount,
-    resultsLocked: db.voters.length > 0 && votedVoterIds.size < db.voters.length
+    resultsLocked: db.event.status !== "completed" && db.voters.length > 0 && votedVoterIds.size < db.voters.length
   };
   return {
+    organizers: db.organizers.map(publicOrganizer),
+    currentOrganizer: req && currentAdmin(req) ? publicOrganizer(currentAdmin(req)) : null,
+    history: db.history.map(({ snapshot, ...summary }) => summary).reverse(),
     event: { ...db.event, currentRound: round, criteria: selectionCriteria, selectionLimit: selectionLimit() },
     talks: visibleTalks(round),
     allTalks: [...db.talks].sort((a, b) => a.order - b.order),
@@ -400,9 +430,11 @@ async function api(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/public") return json(res, 200, publicState(voteOwner(req)));
 
   if (req.method === "POST" && url.pathname === "/api/votes") {
+    const input = await body(req);
+    if (db.event.status === "completed") return json(res, 409, { error: "Событие завершено. Голосование закрыто." });
     const owner = voteOwner(req);
     if (!owner.voter && !owner.deviceId) return json(res, 401, { error: "Не удалось определить устройство для голосования" });
-    const input = await body(req);
+    if ((input.eventId && input.eventId !== db.event.id) || (input.round && Number(input.round) !== currentRound())) return json(res, 409, { error: "Голосование изменилось. Обновите страницу." });
     const limit = selectionLimit();
     const requestedIds = limit === 1 ? [input.talkId] : Array.isArray(input.talkIds) ? input.talkIds : [];
     const talkIds = [...new Set(requestedIds)].filter(Boolean);
@@ -432,25 +464,180 @@ async function api(req, res, url) {
 
   if (req.method === "POST" && url.pathname === "/api/admin/login") {
     const input = await body(req);
-    const digest = value => crypto.createHash("sha256").update(String(value)).digest();
-    const valid = crypto.timingSafeEqual(digest(input.password || ""), digest(adminPassword));
-    if (!valid) return json(res, 401, { error: "Неверный пароль" });
+    const login = typeof input.login === "string" ? input.login.trim().toLowerCase() : "admin";
+    const now = Date.now();
+    for (const [key, attempt] of loginAttempts) if (attempt.until <= now) loginAttempts.delete(key);
+    for (const [key, session] of adminSessions) if (session.expiresAt <= now) adminSessions.delete(key);
+    const key = req.socket.remoteAddress;
+    const attempt = loginAttempts.get(key) || { count: 0, until: now + 15 * 60000 };
+    if (attempt.count >= 15) return json(res, 429, { error: "Слишком много попыток. Попробуйте через 15 минут." });
+    attempt.count++;
+    loginAttempts.set(key, attempt);
+    const organizer = db.organizers.find(item => item.login === login);
+    const password = typeof input.password === "string" && input.password.length <= 256 ? input.password : "";
+    const hash = await scrypt(password, organizer?.salt || "invalid-account", 64);
+    const expected = organizer ? Buffer.from(organizer.passwordHash, "hex") : Buffer.alloc(64);
+    if (!organizer || !crypto.timingSafeEqual(hash, expected)) return json(res, 401, { error: "Неверный логин или пароль" });
+    loginAttempts.delete(key);
     const token = id();
-    adminSessions.add(token);
+    adminSessions.set(token, { organizerId: organizer.id, expiresAt: now + sessionDuration });
     return json(res, 200, { ok: true }, {
       "Set-Cookie": `admin_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${isProduction ? "; Secure" : ""}`
     });
   }
 
   if (url.pathname.startsWith("/api/admin/") && !isAdmin(req)) return json(res, 401, { error: "Нужен вход администратора" });
-  if (req.method === "GET" && url.pathname === "/api/admin/state") return json(res, 200, adminState());
+  if (req.method === "GET" && url.pathname === "/api/admin/state") return json(res, 200, adminState(req));
+
+  if (req.method === "POST" && url.pathname === "/api/admin/qr") {
+    const input = await body(req);
+    let origin;
+    try { origin = new URL(input.origin); } catch { return json(res, 400, { error: "Некорректный адрес сайта" }); }
+    if (!["http:", "https:"].includes(origin.protocol) || origin.origin !== input.origin || (origin.host !== req.headers.host && origin.origin !== publicOrigin)) {
+      return json(res, 400, { error: "Используйте адрес текущего сайта" });
+    }
+    const voter = input.voterId ? db.voters.find(item => item.id === input.voterId) : null;
+    if (input.voterId && !voter) return json(res, 404, { error: "Член жюри не найден" });
+    const link = new URL("/", origin);
+    link.searchParams.set(voter ? "token" : "public", voter ? voter.token : "1");
+    const dataUrl = await QRCode.toDataURL(link.href, { errorCorrectionLevel: "M", margin: 4, scale: 10 });
+    if (!currentAdmin(req)) return json(res, 401, { error: "Нужен вход администратора" });
+    return json(res, 200, { link: link.href, dataUrl });
+  }
+
+  const passwordMatch = url.pathname.match(/^\/api\/admin\/organizers\/([^/]+)\/password$/);
+  if (req.method === "POST" && passwordMatch) {
+    const input = await body(req);
+    const actor = currentAdmin(req);
+    if (!actor) return json(res, 401, { error: "Нужен вход администратора" });
+    const target = db.organizers.find(item => item.id === passwordMatch[1]);
+    if (!target) return json(res, 404, { error: "Организатор не найден" });
+    if (typeof input.password !== "string" || input.password.length < 10 || input.password.length > 256) return json(res, 400, { error: "Пароль должен содержать от 10 до 256 символов" });
+    const now = Date.now();
+    for (const [key, attempt] of passwordAttempts) if (attempt.until <= now) passwordAttempts.delete(key);
+    const attempt = passwordAttempts.get(actor.id) || { count: 0, until: now + 15 * 60000 };
+    if (attempt.count >= 5) return json(res, 429, { error: "Слишком много попыток. Попробуйте через 15 минут." });
+    attempt.count++;
+    passwordAttempts.set(actor.id, attempt);
+    const actorHash = actor.passwordHash;
+    const targetHash = target.passwordHash;
+    const currentPassword = typeof input.currentPassword === "string" && input.currentPassword.length <= 256 ? input.currentPassword : "";
+    const suppliedHash = await scrypt(currentPassword, actor.salt, 64);
+    if (!crypto.timingSafeEqual(suppliedHash, Buffer.from(actorHash, "hex"))) return json(res, 403, { error: "Неверный текущий пароль вашего аккаунта" });
+    const salt = crypto.randomBytes(16).toString("hex");
+    const passwordHash = (await scrypt(input.password, salt, 64)).toString("hex");
+    // A reset or revocation during hashing must not authorize a stale request.
+    if (currentAdmin(req) !== actor || actor.passwordHash !== actorHash) return json(res, 401, { error: "Войдите в аккаунт заново" });
+    if (!db.organizers.includes(target) || target.passwordHash !== targetHash) return json(res, 409, { error: "Аккаунт изменился. Обновите страницу." });
+    Object.assign(target, { salt, passwordHash });
+    saveDb();
+    passwordAttempts.delete(actor.id);
+    for (const [token, session] of adminSessions) if (session.organizerId === target.id) adminSessions.delete(token);
+    const headers = {};
+    if (actor.id === target.id) {
+      const token = id();
+      adminSessions.set(token, { organizerId: actor.id, expiresAt: Date.now() + sessionDuration });
+      headers["Set-Cookie"] = `admin_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400${isProduction ? "; Secure" : ""}`;
+    }
+    return json(res, 200, { ...adminState(req), currentOrganizer: publicOrganizer(actor) }, headers);
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/events/complete") {
+    if (db.event.status !== "completed") {
+      db.event.status = "completed";
+      db.event.completedAt = new Date().toISOString();
+      const snapshot = adminState();
+      snapshot.allVotes = structuredClone(db.votes);
+      delete snapshot.organizers;
+      delete snapshot.currentOrganizer;
+      delete snapshot.history;
+      snapshot.voters = snapshot.voters.map(({ token, ...voter }) => voter);
+      snapshot.votingProgress.resultsLocked = false;
+      db.history.push({ id: db.event.id, title: db.event.title, completedAt: db.event.completedAt,
+        talksCount: db.talks.length, votesCount: db.votes.length, snapshot: structuredClone(snapshot) });
+      saveDb();
+    }
+    return json(res, 200, adminState(req));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/events/new") {
+    const input = await body(req);
+    if (db.event.status !== "completed") return json(res, 409, { error: "Сначала завершите текущее событие" });
+    const title = safeText(input.title, 300);
+    if (!title) return json(res, 400, { error: "Введите название события" });
+    db.event = { id: id(), title, status: "open", votingMode: "top3", currentRound: 1, roundTwoFinalistIds: [], activeTalkId: null };
+    db.talks = []; db.voters = []; db.votes = [];
+    saveDb();
+    return json(res, 201, adminState(req));
+  }
+
+  const historyMatch = url.pathname.match(/^\/api\/admin\/history\/([^/]+)$/);
+  if (req.method === "GET" && historyMatch) {
+    const item = db.history.find(item => item.id === historyMatch[1]);
+    return item ? json(res, 200, item) : json(res, 404, { error: "Событие не найдено" });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/logout") {
+    adminSessions.delete(adminToken(req));
+    return json(res, 200, { ok: true }, { "Set-Cookie": `admin_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${isProduction ? "; Secure" : ""}` });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/organizers") {
+    const input = await body(req);
+    const login = typeof input.login === "string" ? input.login.trim().toLowerCase() : "";
+    if (!/^[a-z0-9][a-z0-9._@+-]{2,99}$/.test(login)) return json(res, 400, { error: "Логин: от 3 до 100 латинских букв, цифр или символов . _ @ + -" });
+    if (typeof input.password !== "string" || input.password.length < 10 || input.password.length > 256) return json(res, 400, { error: "Пароль должен содержать от 10 до 256 символов" });
+    if (db.organizers.some(item => item.login === login)) return json(res, 409, { error: "Этот логин уже занят" });
+    const salt = crypto.randomBytes(16).toString("hex");
+    const passwordHash = (await scrypt(input.password, salt, 64)).toString("hex");
+    // Recheck after asynchronous hashing to prevent duplicate concurrent accounts.
+    if (!currentAdmin(req)) return json(res, 401, { error: "Нужен вход администратора" });
+    if (db.organizers.some(item => item.login === login)) return json(res, 409, { error: "Этот логин уже занят" });
+    db.organizers.push({ id: id(), login, name: safeText(input.name, 100) || login, salt, passwordHash, createdAt: new Date().toISOString() });
+    saveDb();
+    return json(res, 201, adminState(req));
+  }
+
+  const deleteOrganizer = url.pathname.match(/^\/api\/admin\/organizers\/([^/]+)$/);
+  if (req.method === "DELETE" && deleteOrganizer) {
+    const target = db.organizers.find(item => item.id === deleteOrganizer[1]);
+    if (!target) return json(res, 404, { error: "Организатор не найден" });
+    if (target.id === currentAdmin(req).id || db.organizers.length === 1) return json(res, 400, { error: "Нельзя удалить собственный аккаунт или последнего организатора" });
+    db.organizers = db.organizers.filter(item => item.id !== target.id);
+    for (const [token, session] of adminSessions) if (session.organizerId === target.id) adminSessions.delete(token);
+    saveDb();
+    return json(res, 200, adminState(req));
+  }
+
+  if (!["GET", "HEAD"].includes(req.method) && db.event.status === "completed") return json(res, 409, { error: "Событие завершено. Создайте новое голосование." });
+
+  if (req.method === "PATCH" && url.pathname === "/api/admin/event/presentation") {
+    const input = await body(req);
+    if (typeof input.title !== "string" || !input.title.trim() || input.title.trim().length > 300) return json(res, 400, { error: "Название: от 1 до 300 символов" });
+    if (typeof input.votingIntro !== "string" || input.votingIntro.length > 600) return json(res, 400, { error: "Текст шапки: не более 600 символов" });
+    db.event.title = input.title.trim();
+    db.event.votingIntro = input.votingIntro.trim();
+    saveDb();
+    return json(res, 200, adminState(req));
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/admin/talks/import") {
+    const input = await body(req);
+    if (db.talks.length || db.votes.length) return json(res, 409, { error: "Импорт доступен в новое пустое событие" });
+    if (!Array.isArray(input.talks) || !input.talks.length || input.talks.length > 200) return json(res, 400, { error: "Передайте от 1 до 200 докладов" });
+    if (input.talks.some(talk => !talk || typeof talk.title !== "string" || !talk.title.trim())) return json(res, 400, { error: "У каждого доклада должно быть название" });
+    db.talks = input.talks.map((talk, index) => ({ id: id(), title: safeText(talk.title, 300), speaker: safeText(talk.speaker, 300), description: safeText(talk.description, 600), order: index + 1, status: "planned" }));
+    db.event.importSource = safeText(input.source, 64);
+    saveDb();
+    return json(res, 201, adminState(req));
+  }
 
   if (req.method === "POST" && url.pathname === "/api/admin/votes/reset") {
     const round = currentRound();
     db.votes = db.votes.filter(vote => voteRound(vote) !== round);
     if (round === 1) db.event.roundTwoFinalistIds = [];
     saveDb();
-    return json(res, 200, adminState());
+    return json(res, 200, adminState(req));
   }
 
   if (req.method === "POST" && url.pathname === "/api/admin/event/round") {
@@ -462,7 +649,7 @@ async function api(req, res, url) {
     }
     db.event.currentRound = round;
     saveDb();
-    return json(res, 200, adminState());
+    return json(res, 200, adminState(req));
   }
 
   if (req.method === "POST" && url.pathname === "/api/admin/event/mode") {
@@ -471,7 +658,7 @@ async function api(req, res, url) {
     db.event.votingMode = input.votingMode;
     if (currentRound() === 1) db.event.roundTwoFinalistIds = [];
     saveDb();
-    return json(res, 200, adminState());
+    return json(res, 200, adminState(req));
   }
 
   if (req.method === "POST" && url.pathname === "/api/admin/voters") {
@@ -481,7 +668,7 @@ async function api(req, res, url) {
     const voter = { id: id(), token: id(), name, createdAt: new Date().toISOString() };
     db.voters.push(voter);
     saveDb();
-    return json(res, 201, adminState());
+    return json(res, 201, adminState(req));
   }
 
   const deleteVoter = url.pathname.match(/^\/api\/admin\/voters\/([^/]+)$/);
@@ -490,23 +677,23 @@ async function api(req, res, url) {
     db.votes = db.votes.filter(vote => vote.voterId !== voterId);
     db.voters = db.voters.filter(voter => voter.id !== voterId);
     saveDb();
-    return json(res, 200, adminState());
+    return json(res, 200, adminState(req));
   }
 
   if (req.method === "POST" && url.pathname === "/api/admin/talks") {
     const input = await body(req);
-    const title = safeText(input.title, 140);
+    const title = safeText(input.title, 300);
     if (!title) return json(res, 400, { error: "Нужно название выступления" });
     db.talks.push({
       id: id(),
       title,
-      speaker: safeText(input.speaker, 80),
-      description: safeText(input.description, 300),
+      speaker: safeText(input.speaker, 300),
+      description: safeText(input.description, 600),
       order: db.talks.length + 1,
       status: "planned"
     });
     saveDb();
-    return json(res, 201, adminState());
+    return json(res, 201, adminState(req));
   }
 
   if (req.method === "POST" && url.pathname === "/api/admin/talks/reorder") {
@@ -518,7 +705,7 @@ async function api(req, res, url) {
     const byId = new Map(db.talks.map(talk => [talk.id, talk]));
     db.talks = ids.map((talkId, index) => ({ ...byId.get(talkId), order: index + 1 }));
     saveDb();
-    return json(res, 200, adminState());
+    return json(res, 200, adminState(req));
   }
 
   const activeMatch = url.pathname.match(/^\/api\/admin\/talks\/([^/]+)\/active$/);
@@ -528,17 +715,36 @@ async function api(req, res, url) {
     db.event.activeTalkId = talkId === "none" ? null : talkId;
     db.talks.forEach(talk => { talk.status = talk.id === db.event.activeTalkId ? "active" : "planned"; });
     saveDb();
-    return json(res, 200, adminState());
+    return json(res, 200, adminState(req));
   }
 
   const deleteTalk = url.pathname.match(/^\/api\/admin\/talks\/([^/]+)$/);
+  if (req.method === "PATCH" && deleteTalk) {
+    const input = await body(req);
+    if (!input || typeof input !== "object" || Array.isArray(input)) return json(res, 400, { error: "Некорректные данные выступления" });
+    if (!isAdmin(req)) return json(res, 401, { error: "Нужен вход администратора" });
+    if (db.event.status === "completed") return json(res, 409, { error: "Завершённое событие нельзя редактировать" });
+    const talk = db.talks.find(talk => talk.id === deleteTalk[1]);
+    if (!talk) return json(res, 404, { error: "Выступление не найдено" });
+    const changes = {};
+    for (const [field, max] of [["title", 300], ["speaker", 300], ["description", 600]]) {
+      if (!(field in input)) continue;
+      if (typeof input[field] !== "string" || input[field].trim().length > max) return json(res, 400, { error: "Некорректное или слишком длинное значение поля" });
+      changes[field] = safeText(input[field], max);
+    }
+    if ("title" in changes && !changes.title) return json(res, 400, { error: "Нужно название выступления" });
+    if (!Object.keys(changes).length) return json(res, 400, { error: "Нет изменений для сохранения" });
+    Object.assign(talk, changes);
+    saveDb();
+    return json(res, 200, adminState(req));
+  }
   if (req.method === "DELETE" && deleteTalk) {
     const talkId = deleteTalk[1];
     db.votes = db.votes.filter(vote => !voteTalkIds(vote).includes(talkId));
     db.talks = db.talks.filter(talk => talk.id !== talkId).map((talk, index) => ({ ...talk, order: index + 1 }));
     if (db.event.activeTalkId === talkId) db.event.activeTalkId = null;
     saveDb();
-    return json(res, 200, adminState());
+    return json(res, 200, adminState(req));
   }
 
   return json(res, 404, { error: "Маршрут не найден" });
@@ -547,8 +753,14 @@ async function api(req, res, url) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    if (!["GET", "HEAD"].includes(req.method) && req.headers.origin) {
+      const origin = new URL(req.headers.origin);
+      if (origin.host !== req.headers.host && origin.origin !== publicOrigin) return json(res, 403, { error: "Запрос с другого сайта запрещён" });
+    }
     if (url.pathname.startsWith("/api/")) return await api(req, res, url);
     const file = url.pathname === "/" ? "index.html" : url.pathname === "/admin" ? "admin.html" : url.pathname.slice(1);
+    const publicFiles = new Set(["index.html", "admin.html", "styles.css", "admin.css", "voting.css", "app.js", "admin.js"]);
+    if (!publicFiles.has(file) && !/^fonts\/[A-Za-z0-9_-]+\.ttf$/.test(file)) return json(res, 404, { error: "Не найдено" });
     const resolved = path.resolve(root, file);
     const relative = path.relative(root, resolved);
     if (relative.startsWith("..") || path.isAbsolute(relative) || !fs.existsSync(resolved) || fs.statSync(resolved).isDirectory()) {

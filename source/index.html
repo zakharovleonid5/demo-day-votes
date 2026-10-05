@@ -4,21 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Demo Day Voting</title>
-  <link rel="stylesheet" href="/styles.css?v=20260706-points1">
+  <link rel="stylesheet" href="/styles.css?v=20261005">
+  <link rel="stylesheet" href="/admin.css?v=20261005">
+  <link rel="stylesheet" href="/voting.css?v=20261005">
 </head>
-<body>
+<body class="organizer-app voting-app">
+  <div class="ballot-topbar"><div><span>Demo Day / Голосование жюри</span><span id="ballotRound" class="status-tag">Голосование</span></div></div>
   <main class="app-shell">
-    <header class="hero">
-      <div class="brand-lockup"><span class="brand-mark">ОТП</span><span>Банк · Demo Day</span></div>
-      <p class="eyebrow">Demo Day</p>
-      <h1>Выбор лучшего доклада</h1>
-      <p id="modeNote">Выбери один доклад, который считаешь лучшим. Выбор сохранится для этого устройства.</p>
+    <header class="ballot-heading">
+      <p class="eyebrow">ВЫБОР ЖЮРИ</p>
+      <h1 id="ballotTitle">Demo Day</h1>
+      <p id="modeNote" class="muted"></p>
     </header>
 
-    <section id="talks" class="talk-stack" aria-live="polite"></section>
+    <section id="talks" class="talk-stack" aria-live="polite"><p class="muted">Загружаем голосование…</p></section>
   </main>
 
   <div id="toast" class="toast" role="status"></div>
-  <script src="/app.js?v=20260706-places1"></script>
+  <script src="/app.js?v=20261005"></script>
 </body>
 </html>

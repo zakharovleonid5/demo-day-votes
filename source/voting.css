@@ -1,0 +1,56 @@
+.voting-app .app-shell{width:min(100% - 40px,880px);margin:0 auto;padding:32px 0 170px}
+.ballot-topbar{background:#fff;border-bottom:1px solid #e1e3dd}
+.ballot-topbar>div{width:min(100% - 40px,880px);min-height:76px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#696b69}
+.ballot-heading{padding:0 0 28px;border-bottom:1px solid #e1e3dd;margin-bottom:24px}
+.voting-app h1{max-width:none;overflow-wrap:anywhere}
+.voting-app #modeNote{max-width:720px;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:12px}
+.voting-app .points-explainer{background:transparent;border:0;border-radius:0;box-shadow:none;padding:0 0 24px;margin:0;gap:12px}
+.voting-app .points-explainer strong{font-size:14px;font-weight:600}
+.voting-app .points-kicker{font-size:10px;font-weight:600;color:#7d8377;margin-bottom:6px}
+.voting-app .points-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.voting-app .points-grid span{display:flex;flex-direction:column;align-items:flex-start;border:1px solid #e1e3dd;border-top:3px solid var(--otp-lime);border-radius:6px;padding:14px;gap:6px}
+.voting-app .points-grid span:nth-child(2){border-top-color:var(--otp-purple)}
+.voting-app .points-grid span:nth-child(3){border-top-color:var(--otp-blue)}
+.voting-app .points-grid b{font-weight:500;color:#696b69}
+.voting-app .points-grid em{font-size:21px;font-weight:650}
+.voting-app .best-choice-list{gap:10px}
+.voting-app .best-talk{grid-template-columns:30px minmax(0,1fr) auto;align-items:center;padding:18px 16px;border:1px solid #e1e3dd;border-radius:6px;box-shadow:none;gap:14px;min-height:80px}
+.voting-app .best-talk:hover:not(:disabled){border-color:#9e6fc3;filter:none}
+.voting-app .best-talk.selected{background:#eff9d8;border-color:#8ba933;box-shadow:inset 3px 0 var(--otp-lime)}
+.voting-app .best-talk-order{background:#edf0e9;width:28px;height:28px;border-radius:4px;font-size:13px;font-weight:600}
+.voting-app .best-talk-main strong{font-size:14px;line-height:1.45;font-weight:600}
+.voting-app .best-talk-main span,.voting-app .best-talk-main em{font-weight:400;color:#696b69;line-height:1.5}
+.voting-app .best-talk-check{border-radius:5px;font-size:11px;font-weight:600;min-width:74px;padding:7px 8px;grid-column:auto}
+.voting-app .best-talk.selected .best-talk-check{background:var(--otp-lime);border-color:var(--otp-lime);color:#243711}
+.voting-app .save-widget{width:min(880px,calc(100% - 32px));max-width:none;border:1px solid #dcded9;border-top:3px solid var(--otp-lime);border-radius:6px;background:#fff;box-shadow:0 4px 24px #00000012;padding:14px 16px;bottom:max(16px,env(safe-area-inset-bottom));visibility:hidden}
+.voting-app .save-widget.show{visibility:visible}
+.voting-app .save-widget strong{font-size:20px;font-weight:650}
+.voting-app .save-widget span{font-weight:400}
+.voting-app .result-card,.voting-app .public-leaderboard{background:transparent;border:0;border-radius:0;box-shadow:none;padding:0}
+.voting-app .public-leaderboard{border-top:1px solid #e1e3dd;padding-top:26px;margin-top:16px}
+.voting-app .result-card h2,.voting-app .public-leaderboard h2{font-size:18px;font-weight:650}
+.voting-app .result-badge{border-radius:4px;font-weight:600;font-size:11px;background:#edf8d8;color:#435b19}
+.voting-app .chosen-list{gap:0}
+.voting-app .chosen-item,.voting-app .public-leader-row{background:transparent;border:0;border-bottom:1px solid #e1e3dd;border-radius:0;padding:16px 0;grid-template-columns:auto minmax(0,1fr) auto;gap:12px}
+.voting-app .chosen-item{grid-template-columns:60px minmax(0,1fr)}
+.voting-app .chosen-item>span{grid-row:1/3;align-self:start}
+.voting-app .chosen-item>em{grid-column:2;margin-top:0}
+.voting-app .chosen-item span,.voting-app .public-leader-row span{border-radius:4px;font-weight:600;font-size:11px}
+.voting-app .chosen-item strong,.voting-app .public-leader-row strong{font-size:14px;font-weight:600;line-height:1.45}
+.voting-app .chosen-item em,.voting-app .public-leader-row em{font-weight:400;overflow-wrap:anywhere}
+.voting-app .public-leader-row b{grid-column:3;font-size:19px;font-weight:650;color:#171717}
+.voting-app .retry-voting{margin-top:16px}
+@media(max-width:600px){
+  .voting-app .app-shell{width:calc(100% - 32px);padding-top:24px;padding-bottom:190px}
+  .ballot-topbar>div{width:calc(100% - 32px);min-height:58px;font-size:11px;flex-wrap:wrap;padding:12px 0}
+  .voting-app .best-talk{grid-template-columns:28px minmax(0,1fr);gap:10px;padding:14px;min-height:104px}
+  .voting-app .best-talk-check{grid-column:2;justify-self:start}
+  .voting-app .best-talk-order{align-self:start}
+  .voting-app .points-grid{gap:8px}
+  .voting-app .points-grid span{padding:12px 10px}
+  .voting-app .points-grid em{font-size:18px}
+  .voting-app .save-widget{flex-direction:row;align-items:center;gap:10px;padding:12px}
+  .voting-app .save-widget>div{min-width:0}
+  .voting-app .save-widget button{width:auto;flex-shrink:0;min-height:44px;padding:10px}
+}
+@media(prefers-reduced-motion:reduce){.voting-app *{transition:none!important;scroll-behavior:auto!important}}
