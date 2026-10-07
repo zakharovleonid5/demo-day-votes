@@ -40,17 +40,26 @@
 .voting-app .chosen-item em,.voting-app .public-leader-row em{font-weight:400;overflow-wrap:anywhere}
 .voting-app .public-leader-row b{grid-column:3;font-size:19px;font-weight:650;color:#171717}
 .voting-app .retry-voting{margin-top:16px}
+.voting-app .ballot-recovery{display:inline-flex;align-items:center;min-height:44px;margin-top:20px;padding:10px 16px;border-radius:6px;background:var(--otp-lime);color:#243711;font-weight:600;text-decoration:none}
+.voting-app .retry-storage{margin-top:20px}
+.voting-app .best-talk-main,.voting-app .public-leader-row>div{overflow-wrap:anywhere}
+.voting-app button,.voting-app .ballot-recovery{touch-action:manipulation}
+.voting-app .best-talk{scroll-margin-bottom:180px}
 @media(max-width:600px){
-  .voting-app .app-shell{width:calc(100% - 32px);padding-top:24px;padding-bottom:190px}
+  .voting-app .app-shell{width:100%;padding:24px max(16px,env(safe-area-inset-right)) calc(190px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
   .ballot-topbar>div{width:calc(100% - 32px);min-height:58px;font-size:11px;flex-wrap:wrap;padding:12px 0}
   .voting-app .best-talk{grid-template-columns:28px minmax(0,1fr);gap:10px;padding:14px;min-height:104px}
   .voting-app .best-talk-check{grid-column:2;justify-self:start}
   .voting-app .best-talk-order{align-self:start}
+  .voting-app .best-talk-main strong{font-size:16px}
+  .voting-app .best-talk-main span,.voting-app .best-talk-main em{font-size:13px}
   .voting-app .points-grid{gap:8px}
   .voting-app .points-grid span{padding:12px 10px}
   .voting-app .points-grid em{font-size:18px}
-  .voting-app .save-widget{flex-direction:row;align-items:center;gap:10px;padding:12px}
+  .voting-app .save-widget{display:grid;grid-template-columns:1fr;gap:10px;padding:12px;bottom:max(12px,env(safe-area-inset-bottom))}
+  .voting-app .save-widget>div{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .voting-app .save-widget>div{min-width:0}
-  .voting-app .save-widget button{width:auto;flex-shrink:0;min-height:44px;padding:10px}
+  .voting-app .save-widget button{width:100%;min-height:48px;padding:12px;font-size:16px}
+  .voting-app .edit-vote,.voting-app .retry-voting,.voting-app .retry-storage{min-height:44px}
 }
 @media(prefers-reduced-motion:reduce){.voting-app *{transition:none!important;scroll-behavior:auto!important}}

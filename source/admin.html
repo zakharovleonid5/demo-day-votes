@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Demo Day · Организатор</title>
-<link rel="stylesheet" href="/styles.css?v=20261005"><link rel="stylesheet" href="/admin.css?v=20261005">
+<link rel="stylesheet" href="/styles.css?v=20261005"><link rel="stylesheet" href="/admin.css?v=20261007">
 </head>
 <body class="organizer-app">
 <section id="login" class="login-panel">
-  <div class="brand-lockup"><span class="brand-mark">ОТП</span><span>demo day.</span></div>
+  <div class="brand-lockup"><span>demo day.</span></div>
   <h1>Вход организатора</h1><p class="muted">Программа, участники и результаты Demo Day.</p>
   <form id="loginForm" class="dialog-form">
     <label>Логин<input name="login" required autocomplete="username" placeholder="Логин или почта"></label>
@@ -24,7 +24,7 @@
       <button id="tab-events" role="tab" aria-controls="panel-events" aria-selected="false" tabindex="-1" data-tab="events"><span class="nav-symbol" aria-hidden="true">03</span>События</button>
       <button id="tab-organizers" role="tab" aria-controls="panel-organizers" aria-selected="false" tabindex="-1" data-tab="organizers"><span class="nav-symbol" aria-hidden="true">04</span>Организаторы</button>
     </nav>
-    <div class="sidebar-bottom"><a class="vote-link" href="/?public=1" target="_blank" rel="noopener">Открыть голосование <span aria-hidden="true">↗</span></a><p>Люди. Идеи. Результаты.</p></div>
+    <div class="sidebar-bottom"><a class="vote-link" href="/vote" target="_blank" rel="noopener">Открыть голосование <span aria-hidden="true">↗</span></a><p>Люди. Идеи. Результаты.</p></div>
   </aside>
   <div class="organizer-workspace">
     <header class="workspace-topbar"><span>Demo Day / <span id="breadcrumb">Выступления</span></span><div class="account-menu"><span class="user-avatar" id="userAvatar" aria-hidden="true">О</span><span id="currentUser">Организатор</span><button id="logout" class="ghost" type="button">Выйти</button></div></header>
@@ -47,7 +47,7 @@
       <section id="panel-events" role="tabpanel" aria-labelledby="tab-events" tabindex="0" hidden>
         <div class="section-heading"><div><h2>События</h2><p id="newEventHint" class="muted">Чтобы создать новое событие, завершите текущее.</p></div><button id="newEvent" type="button" aria-describedby="newEventHint" disabled>Создать событие</button></div>
         <section class="event-strip" aria-label="Текущее событие"><span id="eventStatus" class="status-tag">Голосование открыто</span><span id="eventRound">Раунд 1</span><span class="event-progress" id="eventProgress"></span><button id="completeEvent" class="ghost" type="button">Завершить событие</button></section>
-        <section class="ballot-settings" aria-labelledby="ballotSettingsTitle"><div><h2 id="ballotSettingsTitle">Анкета голосования</h2><p id="ballotIntroPreview" class="muted"></p></div><div class="link-actions"><button id="editEventPresentation" class="ghost" type="button">Изменить название и шапку</button><a class="vote-link" href="/?public=1" target="_blank" rel="noopener">Открыть анкету ↗</a></div></section>
+        <section class="ballot-settings" aria-labelledby="ballotSettingsTitle"><div><h2 id="ballotSettingsTitle">Анкета голосования</h2><p id="ballotIntroPreview" class="muted"></p></div><div class="link-actions"><button id="editEventPresentation" class="ghost" type="button">Изменить название и шапку</button><a class="vote-link" href="/vote" target="_blank" rel="noopener">Открыть анкету ↗</a></div></section>
         <details id="currentStatistics" class="event-statistics">
         <summary>Статистика текущего события</summary>
         <section id="metrics" class="metrics" aria-label="Метрики"></section>
@@ -111,5 +111,5 @@
   <p class="error" data-form-error role="alert"></p><div class="dialog-actions"><button type="button" class="ghost" data-close="eventDialog">Отмена</button><button type="submit">Создать голосование</button></div>
 </form></dialog>
 <dialog id="confirmDialog" class="confirm-dialog"><form method="dialog" class="confirm-card"><div class="confirm-icon" aria-hidden="true">!</div><div><p class="eyebrow">Подтверждение</p><h2 id="confirmTitle">Подтвердите действие</h2><p id="confirmMessage" class="muted"></p></div><div class="confirm-actions"><button id="confirmCancel" class="ghost" type="button">Отмена</button><button id="confirmOk" type="submit">ОК</button></div></form></dialog>
-<div id="toast" class="toast" role="status"></div><script src="/admin.js?v=20261005"></script>
+<div id="toast" class="toast" role="status"></div><script src="/admin.js?v=20261007"></script>
 </body></html>

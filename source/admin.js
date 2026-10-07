@@ -207,7 +207,7 @@ function render() {
   document.querySelector("#leaderboardTitle").textContent = `Лидерборд · Раунд ${round}`;
   document.querySelector("#matrixTitle").textContent = `Матрица голосов · Раунд ${round}`;
 
-  const commonLink = `${location.origin}/?public=1`;
+  const commonLink = `${location.origin}/vote`;
   const commonInput = document.querySelector("#commonVoteLink");
   const commonButton = document.querySelector("#copyCommonLink");
   if (commonInput && commonButton) {

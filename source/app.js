@@ -2,22 +2,28 @@ const tokenKey = "demo-day-voter-token";
 const deviceKey = "demo-day-device-id";
 const urlParams = new URLSearchParams(location.search);
 const urlToken = urlParams.get("token");
-if (urlParams.get("public") === "1" && !urlToken) {
-  localStorage.removeItem(tokenKey);
-  history.replaceState(null, "", location.pathname);
+const commonEntry = (location.pathname.replace(/\/$/, "") === "/vote" || urlParams.get("public") === "1") && !urlToken;
+const storage = {
+  get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+  set(key, value) { try { localStorage.setItem(key, value); } catch {} },
+  remove(key) { try { localStorage.removeItem(key); } catch {} }
+};
+if (commonEntry) {
+  storage.remove(tokenKey);
+  history.replaceState(null, "", "/vote");
 }
 
 if (urlToken) {
-  localStorage.setItem(tokenKey, urlToken);
-  history.replaceState(null, "", location.pathname);
+  storage.set(tokenKey, urlToken);
 }
 
-let token = localStorage.getItem(tokenKey);
-let deviceId = localStorage.getItem(deviceKey);
+let token = commonEntry ? null : urlToken || storage.get(tokenKey);
+let deviceId = storage.get(deviceKey);
 if (!deviceId) {
-  deviceId = crypto.randomUUID();
-  localStorage.setItem(deviceKey, deviceId);
+  deviceId = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+  storage.set(deviceKey, deviceId);
 }
+const deviceRemembered = storage.get(deviceKey) === deviceId;
 
 let state = null;
 let selectedTalkIds = [];
@@ -167,7 +173,12 @@ function renderTalks() {
     return;
   }
   if (token && !state.voter) {
-    document.querySelector("#talks").innerHTML = '<section class="result-card"><h2>Ссылка больше не действует</h2><p class="muted">Попросите организатора прислать приглашение на текущее событие.</p></section>';
+    document.querySelector("#talks").innerHTML = '<section class="result-card"><h2>Это приглашение больше не действует</h2><p class="muted">Возможно, оно относится к прошлому событию или было отозвано. Для личного голосования запросите новое приглашение у организатора. Если вам прислали общую ссылку, откройте общую анкету.</p><a class="ballot-recovery" href="/vote">Открыть общую анкету</a></section>';
+    return;
+  }
+  if (!token && !deviceRemembered) {
+    document.querySelector("#talks").innerHTML = '<section class="result-card"><h2>Разрешите сохранение данных сайта</h2><p class="muted">Браузер не позволяет запомнить ваш голос. Откройте эту ссылку в Safari или Chrome и разрешите хранение данных сайта, либо запросите личную ссылку у организатора.</p><button class="ghost retry-storage" type="button">Проверить снова</button></section>';
+    document.querySelector(".retry-storage").onclick = () => location.reload();
     return;
   }
   if (!state.talks.length) {

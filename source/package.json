@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test integration.test.js account-tools.test.js",
-    "test:ui": "node --test ui.test.js"
+    "test:ui": "node --test ui.test.js ballot-mobile.test.js"
   },
   "engines": {
     "node": ">=20"

@@ -83,13 +83,13 @@ test("QR images decode to common and personal ballot links and require organizer
   assert.equal((await request("/api/admin/qr", { origin: base, voterId: "missing" })).status, 404);
   const proxied = await fetch(base + "/api/admin/qr", { method: "POST", headers: { "Content-Type": "application/json", cookie: adminCookie, Origin: process.env.PUBLIC_ORIGIN }, body: JSON.stringify({ origin: process.env.PUBLIC_ORIGIN }) });
   assert.equal(proxied.status, 200);
-  assert.equal((await proxied.json()).link, process.env.PUBLIC_ORIGIN + "/?public=1");
+  assert.equal((await proxied.json()).link, process.env.PUBLIC_ORIGIN + "/vote");
   const spoofed = await fetch(base + "/api/admin/qr", { method: "POST", headers: { "Content-Type": "application/json", cookie: adminCookie, Origin: "https://attacker.example", "X-Forwarded-Host": "demo-day-votes.vercel.app" }, body: JSON.stringify({ origin: process.env.PUBLIC_ORIGIN }) });
   assert.equal(spoofed.status, 403);
   await request("/api/admin/events/new", { title: "QR event" });
   const state = await (await request("/api/admin/voters", { name: "QR Jury" })).json();
   const voter = state.voters[0];
-  for (const [voterId, link] of [["", `${base}/?public=1`], [voter.id, `${base}/?token=${encodeURIComponent(voter.token)}`]]) {
+  for (const [voterId, link] of [["", `${base}/vote`], [voter.id, `${base}/?token=${encodeURIComponent(voter.token)}`]]) {
     const response = await request("/api/admin/qr", { origin: base, voterId });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "no-store");

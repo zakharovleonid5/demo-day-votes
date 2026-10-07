@@ -195,7 +195,7 @@ function securityHeaders() {
       "frame-ancestors 'none'"
     ].join("; "),
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=()",
-    "Referrer-Policy": "same-origin",
+    "Referrer-Policy": "no-referrer",
     "Cache-Control": "no-store"
   };
 }
@@ -498,8 +498,8 @@ async function api(req, res, url) {
     }
     const voter = input.voterId ? db.voters.find(item => item.id === input.voterId) : null;
     if (input.voterId && !voter) return json(res, 404, { error: "Член жюри не найден" });
-    const link = new URL("/", origin);
-    link.searchParams.set(voter ? "token" : "public", voter ? voter.token : "1");
+    const link = new URL(voter ? "/" : "/vote", origin);
+    if (voter) link.searchParams.set("token", voter.token);
     const dataUrl = await QRCode.toDataURL(link.href, { errorCorrectionLevel: "M", margin: 4, scale: 10 });
     if (!currentAdmin(req)) return json(res, 401, { error: "Нужен вход администратора" });
     return json(res, 200, { link: link.href, dataUrl });
@@ -758,7 +758,7 @@ const server = http.createServer(async (req, res) => {
       if (origin.host !== req.headers.host && origin.origin !== publicOrigin) return json(res, 403, { error: "Запрос с другого сайта запрещён" });
     }
     if (url.pathname.startsWith("/api/")) return await api(req, res, url);
-    const file = url.pathname === "/" ? "index.html" : url.pathname === "/admin" ? "admin.html" : url.pathname.slice(1);
+    const file = ["/", "/vote", "/vote/"].includes(url.pathname) ? "index.html" : url.pathname === "/admin" ? "admin.html" : url.pathname.slice(1);
     const publicFiles = new Set(["index.html", "admin.html", "styles.css", "admin.css", "voting.css", "app.js", "admin.js"]);
     if (!publicFiles.has(file) && !/^fonts\/[A-Za-z0-9_-]+\.ttf$/.test(file)) return json(res, 404, { error: "Не найдено" });
     const resolved = path.resolve(root, file);

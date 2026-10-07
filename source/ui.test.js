@@ -131,7 +131,7 @@ for (const [name, viewport] of [["desktop", { width: 1440, height: 1000 }], ["mo
       await page.unroute("**/api/admin/qr");
       await page.locator("#qrRetry").click();
       await expect(page.locator("#qrImage")).toBeVisible();
-      await expect(page.locator("#qrLink")).toHaveValue(base + "/?public=1");
+      await expect(page.locator("#qrLink")).toHaveValue(base + "/vote");
       await expect(page.locator("#qrLocalWarning")).toBeVisible();
       await page.locator('[data-close="qrDialog"]').click();
       await page.locator("#voters .show-qr").click();
@@ -220,7 +220,7 @@ for (const [name, viewport] of [["desktop", { width: 1440, height: 1000 }], ["mo
       await page.goto(base + "/admin#history");
       await expect(page.locator("#historyList .history-row")).toBeVisible();
       await jury.reload();
-      await expect(jury.getByRole("heading", { name: "Ссылка больше не действует" })).toBeVisible();
+      await expect(jury.getByRole("heading", { name: "Это приглашение больше не действует" })).toBeVisible();
       await jury.goto(base + "/?public=1");
       await expect(jury.getByRole("heading", { name: "Программа готовится" })).toBeVisible();
       await juryContext.close();
