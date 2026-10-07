@@ -36,7 +36,7 @@ try {
     }
     # Only presentation rows have a named speaker; opening, break and closing do not.
     if ($row.r -eq '1' -or -not $cells['F'] -or -not $cells['E'] -or $cells['E'] -match '^[-\u2014\u2013]+$') { continue }
-    $talks += @{ title = $cells['F']; speaker = $cells['E']; description = '' }
+    $talks += @{ title = $cells['F'] }
   }
 } finally { $zip.Dispose() }
 if (-not $talks.Count) { throw 'No presentations found; nothing was changed.' }

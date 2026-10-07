@@ -616,8 +616,8 @@ test("editing a talk preserves its identity, order and existing votes", async ()
     const after = await response.json();
     const updated = after.allTalks.find(t => t.id === talkId);
     assert.equal(updated.title, "Обновлённая фича & продукт");
-    assert.equal(updated.speaker, "Новая команда");
-    assert.equal(updated.description, "");
+    assert.equal(Object.hasOwn(updated, "speaker"), false);
+    assert.equal(Object.hasOwn(updated, "description"), false);
     assert.equal(updated.order, talk.order);
     assert.equal(after.allTalks.length, before.allTalks.length);
     assert.deepEqual(after.votes, before.votes);
@@ -668,6 +668,8 @@ test("event history preserves both rounds; new events isolate votes and survive 
     assert.equal(imported.status, 201);
     const current = await imported.json();
     assert.equal(current.talks[0].title, program[0].title);
+    assert.equal(Object.hasOwn(current.talks[0], "speaker"), false);
+    assert.equal(Object.hasOwn(current.talks[0], "description"), false);
     assert.equal((await request("/api/admin/talks/import", "POST", { talks: program })).status, 409);
     const oldLink = await fetch(base + "/api/votes", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${before.voters[0].token}`, "X-Device-Id": "33333333-3333-4333-8333-333333333333" }, body: JSON.stringify({ talkIds: current.talks.map(t => t.id) }) });
     assert.equal(oldLink.status, 401);

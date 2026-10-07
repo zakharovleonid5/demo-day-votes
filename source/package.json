@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node --test integration.test.js account-tools.test.js",
+    "test": "node --test integration.test.js account-tools.test.js talk-privacy.test.js",
     "test:ui": "node --test ui.test.js ballot-mobile.test.js"
   },
   "engines": {

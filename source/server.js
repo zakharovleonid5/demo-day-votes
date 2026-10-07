@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const QRCode = require("qrcode");
+const { stripTalkDetails } = require("./talk-privacy");
 const { promisify } = require("node:util");
 const scrypt = promisify(crypto.scrypt);
 
@@ -107,24 +108,114 @@ const seed = {
     criteria
   },
   talks: [
-    { id: "talk-1", title: "Сокращенная анкета", speaker: "Спикер уточняется", description: "Дебетовые карты.", order: 1, status: "planned" },
-    { id: "talk-2", title: "1.Новый CJ оплаты по QR СБП   2.Льготные курсы обмена валюты на главном экране МАРР", speaker: "Щипков Михаил Николаевич", description: "Daily Banking. 1) Обновлённый путь оплаты по QR — быстрее, без лишних шагов. 2) Льготный курс вынесен на главный экран — доступ ускорен в 7 раз.", order: 2, status: "planned" },
-    { id: "talk-3", title: "Редизайн экрана вклада и счёта", speaker: "Ковалева Елена Сергеевна", description: "Daily Banking. Новый клиентский путь: договор, условия, FAQ в одном месте.", order: 3, status: "planned" },
-    { id: "talk-4", title: "Зарплатные карты с курьерской доставкой", speaker: "Прокофьева Ксения Сергеевна", description: "Daily Banking. Упрощённый процесс открытия зарплатных карт ЮЛ.", order: 4, status: "planned" },
-    { id: "talk-5", title: "Витрина продуктов в мобильном приложении", speaker: "Капоте Кирилл Робертович", description: "Digital Channel. Сегментированная витрина: эффективность +43%, трафик в VAS — в 9 раз.", order: 5, status: "planned" },
-    { id: "talk-6", title: "Новая история операций в мобильном приложении", speaker: "Ниязметова Любовь Викторовна", description: "Digital Channel. Переосмысленный UI с AI-аналитикой по категориям и поиском.", order: 6, status: "planned" },
-    { id: "talk-7", title: "Выбор суммы кредита после одобрения", speaker: "Попова Юлия Сергеевна", description: "Credit Area. Клиент может скорректировать сумму кредита наличными.", order: 7, status: "planned" },
-    { id: "talk-8", title: "Рассрочка на перевод свободного лимита по СБП", speaker: "Липин Александр Вадимович", description: "Credit Cards Value Area. Новый механизм рассрочки на лимит карты через СБП.", order: 8, status: "planned" },
-    { id: "talk-9", title: "Уведомление о сделке через брокера", speaker: "Шеломенцева Дарья", description: "Lending. Сотрудник мгновенно узнаёт о сделке — обработка сократится с 90 до 20 минут.", order: 9, status: "planned" },
-    { id: "talk-10", title: "Trino — единое окно доступа к данным", speaker: "Кучерова Екатерина Николаевна", description: "IT / Data. Путь от идеи до результата сократится с 30 до 2 дней — трансформация работы с данными всего банка.", order: 10, status: "planned" },
-    { id: "talk-11", title: "Цифровой процесс трудоустройства (Space)", speaker: "Елена Когут", description: "HR Tech. Безбумажное оформление сотрудника удалённо, с первого дня.", order: 11, status: "planned" },
-    { id: "talk-12", title: "QR для бизнес-залов и Fast track", speaker: "Кромский Семён Дмитриевич", description: "Premium & Private. Единый раздел привилегий — QR-код без перехода в другие приложения.", order: 12, status: "planned" },
-    { id: "talk-13", title: "Витрина персональных акций в ДБО", speaker: "Орлов Ростислав Дмитриевич", description: "CVM. Все доступные клиенту акции собраны в одном месте.", order: 13, status: "planned" },
-    { id: "talk-14", title: "Персонализированные категории кешбэка", speaker: "Дукарт Иван Александрович", description: "CVM. Программа лояльности подбирает категории кешбэка под клиента.", order: 14, status: "planned" },
-    { id: "talk-15", title: "Кабинет ПреКлиента (ПреКабинет)", speaker: "Герасименко Антон Юрьевич", description: "Corporate & SME. Self-service для потенциальных клиентов без визита в офис.", order: 15, status: "planned" },
-    { id: "talk-16", title: "Онбординг через помощника в ДБО + маскот банка", speaker: "Тананаев Дмитрий Денисович", description: "Corporate & SME. Триггерные сообщения от персонажа-помощника пользователю.", order: 16, status: "planned" },
-    { id: "talk-17", title: "Бизнес-карты в ДБО ЮЛ", speaker: "Курч Виктор Александрович", description: "Corporate & SME. Дистанционное управление бизнес-картой в кабинете.", order: 17, status: "planned" },
-    { id: "talk-18", title: "Currency Connect", speaker: "Сафонов Олег Дмитриевич", description: "Corporate & SME. Ускорение валютного платежа ЮЛ — график роста за 5 месяцев.", order: 18, status: "planned" }
+    {
+      "id": "talk-1",
+      "title": "Сокращенная анкета",
+      "order": 1,
+      "status": "planned"
+    },
+    {
+      "id": "talk-2",
+      "title": "1.Новый CJ оплаты по QR СБП   2.Льготные курсы обмена валюты на главном экране МАРР",
+      "order": 2,
+      "status": "planned"
+    },
+    {
+      "id": "talk-3",
+      "title": "Редизайн экрана вклада и счёта",
+      "order": 3,
+      "status": "planned"
+    },
+    {
+      "id": "talk-4",
+      "title": "Зарплатные карты с курьерской доставкой",
+      "order": 4,
+      "status": "planned"
+    },
+    {
+      "id": "talk-5",
+      "title": "Витрина продуктов в мобильном приложении",
+      "order": 5,
+      "status": "planned"
+    },
+    {
+      "id": "talk-6",
+      "title": "Новая история операций в мобильном приложении",
+      "order": 6,
+      "status": "planned"
+    },
+    {
+      "id": "talk-7",
+      "title": "Выбор суммы кредита после одобрения",
+      "order": 7,
+      "status": "planned"
+    },
+    {
+      "id": "talk-8",
+      "title": "Рассрочка на перевод свободного лимита по СБП",
+      "order": 8,
+      "status": "planned"
+    },
+    {
+      "id": "talk-9",
+      "title": "Уведомление о сделке через брокера",
+      "order": 9,
+      "status": "planned"
+    },
+    {
+      "id": "talk-10",
+      "title": "Trino — единое окно доступа к данным",
+      "order": 10,
+      "status": "planned"
+    },
+    {
+      "id": "talk-11",
+      "title": "Цифровой процесс трудоустройства (Space)",
+      "order": 11,
+      "status": "planned"
+    },
+    {
+      "id": "talk-12",
+      "title": "QR для бизнес-залов и Fast track",
+      "order": 12,
+      "status": "planned"
+    },
+    {
+      "id": "talk-13",
+      "title": "Витрина персональных акций в ДБО",
+      "order": 13,
+      "status": "planned"
+    },
+    {
+      "id": "talk-14",
+      "title": "Персонализированные категории кешбэка",
+      "order": 14,
+      "status": "planned"
+    },
+    {
+      "id": "talk-15",
+      "title": "Кабинет ПреКлиента (ПреКабинет)",
+      "order": 15,
+      "status": "planned"
+    },
+    {
+      "id": "talk-16",
+      "title": "Онбординг через помощника в ДБО + маскот банка",
+      "order": 16,
+      "status": "planned"
+    },
+    {
+      "id": "talk-17",
+      "title": "Бизнес-карты в ДБО ЮЛ",
+      "order": 17,
+      "status": "planned"
+    },
+    {
+      "id": "talk-18",
+      "title": "Currency Connect",
+      "order": 18,
+      "status": "planned"
+    }
   ],
   voters: [],
   votes: []
@@ -155,6 +246,7 @@ function normalizeDb() {
       passwordHash: crypto.scryptSync(adminPassword, salt, 64).toString("hex"), createdAt: new Date().toISOString() }];
     saveDb();
   }
+  if (stripTalkDetails(db)) saveDb();
 }
 
 normalizeDb();
@@ -626,7 +718,7 @@ async function api(req, res, url) {
     if (db.talks.length || db.votes.length) return json(res, 409, { error: "Импорт доступен в новое пустое событие" });
     if (!Array.isArray(input.talks) || !input.talks.length || input.talks.length > 200) return json(res, 400, { error: "Передайте от 1 до 200 докладов" });
     if (input.talks.some(talk => !talk || typeof talk.title !== "string" || !talk.title.trim())) return json(res, 400, { error: "У каждого доклада должно быть название" });
-    db.talks = input.talks.map((talk, index) => ({ id: id(), title: safeText(talk.title, 300), speaker: safeText(talk.speaker, 300), description: safeText(talk.description, 600), order: index + 1, status: "planned" }));
+    db.talks = input.talks.map((talk, index) => ({ id: id(), title: safeText(talk.title, 300), order: index + 1, status: "planned" }));
     db.event.importSource = safeText(input.source, 64);
     saveDb();
     return json(res, 201, adminState(req));
@@ -687,8 +779,6 @@ async function api(req, res, url) {
     db.talks.push({
       id: id(),
       title,
-      speaker: safeText(input.speaker, 300),
-      description: safeText(input.description, 600),
       order: db.talks.length + 1,
       status: "planned"
     });
@@ -727,7 +817,7 @@ async function api(req, res, url) {
     const talk = db.talks.find(talk => talk.id === deleteTalk[1]);
     if (!talk) return json(res, 404, { error: "Выступление не найдено" });
     const changes = {};
-    for (const [field, max] of [["title", 300], ["speaker", 300], ["description", 600]]) {
+    for (const [field, max] of [["title", 300]]) {
       if (!(field in input)) continue;
       if (typeof input[field] !== "string" || input[field].trim().length > max) return json(res, 400, { error: "Некорректное или слишком длинное значение поля" });
       changes[field] = safeText(input[field], max);
