@@ -132,6 +132,7 @@ function renderResult() {
             <article class="chosen-item">
               <span>${limit === 3 ? `Топ-${item.place}` : "Выбор"}</span>
               <strong>${esc(item.title)}</strong>
+              ${item.team ? `<em>${esc(item.team)}</em>` : ""}
             </article>
           `).join("")}
         </div>
@@ -146,6 +147,7 @@ function renderResult() {
               <span>#${index + 1}</span>
               <div>
                 <strong>${esc(talk.title)}</strong>
+                ${talk.team ? `<em>${esc(talk.team)}</em>` : ""}
               </div>
               <b>${value}</b>
             </article>
@@ -214,6 +216,7 @@ function renderTalks() {
             <span class="best-talk-order">${talk.order}</span>
             <span class="best-talk-main">
               <strong>${esc(talk.title)}</strong>
+              ${talk.team ? `<span>${esc(talk.team)}</span>` : ""}
             </span>
             <span class="best-talk-check">${isSelected ? (limit === 3 ? `Топ-${selectedIndex + 1}` : "Выбрано") : "Выбрать"}</span>
           </button>

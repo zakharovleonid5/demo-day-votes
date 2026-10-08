@@ -17,7 +17,7 @@ for (const [name, engine, viewport] of [
     process.env.NODE_ENV = "test";
     fs.writeFileSync(process.env.DATA_FILE, JSON.stringify({
       event: { title: "Demo Day", votingMode: "top3", currentRound: 1 },
-      talks: Array.from({ length: 6 }, (_, i) => ({ id: `talk-${i}`, title: `Инициатива ${i + 1}: удобное управление регулярными платежами`, speaker: "Имя спикера / Команда", order: i + 1 })),
+      talks: Array.from({ length: 6 }, (_, i) => ({ id: `talk-${i}`, title: `Инициатива ${i + 1}: удобное управление регулярными платежами`, team: i === 5 ? "" : "Product & <team>", speaker: "Имя спикера / Команда", order: i + 1 })),
       voters: [{ id: "jury", token: "valid-personal-token", name: "Jury" }], votes: []
     }));
     delete require.cache[require.resolve("./server")];
@@ -39,6 +39,8 @@ for (const [name, engine, viewport] of [
       await page.getByRole("link", { name: "Открыть общую анкету" }).tap();
       await expect(page).toHaveURL(base + "/vote");
       await expect(page.locator(".best-talk")).toHaveCount(6);
+      await expect(page.locator(".best-talk-main span").first()).toHaveText("Product & <team>");
+      await expect(page.locator(".best-talk").last().locator(".best-talk-main span")).toHaveCount(0);
       assert.equal(await page.evaluate(() => localStorage.getItem("demo-day-voter-token")), null);
       for (let i = 0; i < 3; i++) await page.locator(".best-talk").nth(i).tap();
       await expect(page.locator(".save-widget.show")).toBeVisible();
@@ -49,6 +51,8 @@ for (const [name, engine, viewport] of [
       await page.screenshot({ path: `test-results/mobile-selected-${name}.png`, fullPage: true });
       await page.locator(".submit-vote").tap();
       await expect(page.locator(".chosen-item")).toHaveCount(3);
+      await expect(page.locator(".chosen-item em").first()).toHaveText("Product & <team>");
+      await expect(page.locator(".public-leader-row em").first()).toHaveText("Product & <team>");
       await page.reload();
       await expect(page.locator(".chosen-item")).toHaveCount(3);
       await page.getByRole("button", { name: "Изменить выбор" }).tap();

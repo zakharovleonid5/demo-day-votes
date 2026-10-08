@@ -68,10 +68,15 @@ for (const [name, viewport] of [["desktop", { width: 1440, height: 1000 }], ["mo
       await expect(page.locator('#talkForm [name="title"]')).toHaveValue("Проверка & текста <без HTML>");
       await expect(page.locator('#talkForm [name="speaker"], #talkForm [name="description"]')).toHaveCount(0);
       await page.locator('#talkForm [name="title"]').fill("Обновлённое название");
+      await page.locator('#talkForm [name="team"]').fill("Команда & <продукт>");
       await page.getByRole("button", { name: "Сохранить изменения", exact: true }).click();
       await expect(page.locator("#talkDialog")).not.toBeVisible();
       await page.reload();
       await expect(page.locator("#activeTalks .active-row").last()).toContainText("Обновлённое название");
+      await expect(page.locator("#activeTalks .active-row").last()).toContainText("Команда & <продукт>");
+      await page.locator('#activeTalks .active-row').last().getByRole("button", { name: "Редактировать", exact: true }).click();
+      await expect(page.locator('#talkForm [name="team"]')).toHaveValue("Команда & <продукт>");
+      await page.locator('[data-close="talkDialog"]').first().click();
       await expect(page.locator("#activeTalks")).not.toContainText("Имя спикера");
       await expect(page.locator("#activeTalks .active-row")).toHaveCount(4);
       await noOverflow();

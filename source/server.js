@@ -305,6 +305,10 @@ function safeText(value, max = 180) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function validTeam(value) {
+  return value === undefined || (typeof value === "string" && value.trim().length <= 200);
+}
+
 function bearer(req) {
   return (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
 }
@@ -718,7 +722,8 @@ async function api(req, res, url) {
     if (db.talks.length || db.votes.length) return json(res, 409, { error: "Импорт доступен в новое пустое событие" });
     if (!Array.isArray(input.talks) || !input.talks.length || input.talks.length > 200) return json(res, 400, { error: "Передайте от 1 до 200 докладов" });
     if (input.talks.some(talk => !talk || typeof talk.title !== "string" || !talk.title.trim())) return json(res, 400, { error: "У каждого доклада должно быть название" });
-    db.talks = input.talks.map((talk, index) => ({ id: id(), title: safeText(talk.title, 300), order: index + 1, status: "planned" }));
+    if (input.talks.some(talk => !validTeam(talk.team))) return json(res, 400, { error: "Название команды: не более 200 символов" });
+    db.talks = input.talks.map((talk, index) => ({ id: id(), title: safeText(talk.title, 300), team: safeText(talk.team, 200), order: index + 1, status: "planned" }));
     db.event.importSource = safeText(input.source, 64);
     saveDb();
     return json(res, 201, adminState(req));
@@ -776,9 +781,11 @@ async function api(req, res, url) {
     const input = await body(req);
     const title = safeText(input.title, 300);
     if (!title) return json(res, 400, { error: "Нужно название выступления" });
+    if (!validTeam(input.team)) return json(res, 400, { error: "Название команды: не более 200 символов" });
     db.talks.push({
       id: id(),
       title,
+      team: safeText(input.team, 200),
       order: db.talks.length + 1,
       status: "planned"
     });
@@ -817,7 +824,7 @@ async function api(req, res, url) {
     const talk = db.talks.find(talk => talk.id === deleteTalk[1]);
     if (!talk) return json(res, 404, { error: "Выступление не найдено" });
     const changes = {};
-    for (const [field, max] of [["title", 300]]) {
+    for (const [field, max] of [["title", 300], ["team", 200]]) {
       if (!(field in input)) continue;
       if (typeof input[field] !== "string" || input[field].trim().length > max) return json(res, 400, { error: "Некорректное или слишком длинное значение поля" });
       changes[field] = safeText(input[field], max);

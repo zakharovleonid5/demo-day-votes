@@ -238,7 +238,7 @@ function render() {
   document.querySelector("#activeTalks").innerHTML = allTalks.map((talk, index) => `
       <div class="active-row ${completed ? "" : "draggable"}" draggable="${!completed}" data-talk-id="${talk.id}">
         <div class="drag-handle" title="Перетащить">${index + 1}</div>
-        <div><strong>${esc(talk.title)}</strong>${round === 2 ? `<span class="status-tag">${state.talks.some(item => item.id === talk.id) ? "Финалист" : "Раунд 1"}</span>` : ""}</div>
+        <div><strong>${esc(talk.title)}</strong>${talk.team ? `<div class="muted">${esc(talk.team)}</div>` : ""}${round === 2 ? `<span class="status-tag">${state.talks.some(item => item.id === talk.id) ? "Финалист" : "Раунд 1"}</span>` : ""}</div>
         <div class="move-actions"><button class="ghost icon-button move-talk" data-move="-1" data-talk="${talk.id}" ${completed || index === 0 ? "disabled" : ""} title="Поднять доклад" aria-label="Поднять доклад">↑</button><button class="ghost icon-button move-talk" data-move="1" data-talk="${talk.id}" ${completed || index === allTalks.length - 1 ? "disabled" : ""} title="Опустить доклад" aria-label="Опустить доклад">↓</button></div>
         <div class="talk-actions"><button class="ghost edit-talk" type="button" data-talk="${talk.id}" ${completed ? "disabled" : ""}>Редактировать</button><button class="ghost danger-text delete-talk" type="button" data-talk="${talk.id}" ${completed ? "disabled" : ""}>Удалить</button></div>
       </div>
@@ -273,6 +273,7 @@ function render() {
         <strong>#${index + 1}</strong>
         <div>
           <strong>${esc(talk.title)}</strong>
+          ${talk.team ? `<small>${esc(talk.team)}</small>` : ""}
           ${isTop3 ? `<small>1 мест: ${talk.stats.firstPlaces || 0} · 2 мест: ${talk.stats.secondPlaces || 0} · 3 мест: ${talk.stats.thirdPlaces || 0}</small>` : ""}
           <div class="bar"><span style="width:${percent}%"></span></div>
         </div>
@@ -471,6 +472,7 @@ function openTalkEditor(talk = null) {
   const form = document.querySelector("#talkForm");
   form.reset();
   form.elements.title.value = talk?.title || "";
+  form.elements.team.value = talk?.team || "";
   form.querySelector("[data-form-error]").textContent = "";
   document.querySelector("#talkDialogTitle").textContent = talk ? "Редактировать выступление" : "Новое выступление";
   form.querySelector('[type="submit"]').textContent = talk ? "Сохранить изменения" : "Добавить";
@@ -708,9 +710,9 @@ function renderHistoryRound(round) {
   detail.hidden = false;
   detail.innerHTML = `<h2>${esc(openHistory.title)}</h2><p class="muted history-caption">Завершено ${new Date(openHistory.completedAt).toLocaleString("ru-RU")}. Результаты сохранены на момент завершения.</p>
     <div class="history-rounds" role="group" aria-label="Архивный раунд">${[1, 2].map(value => `<button type="button" data-history-round="${value}" aria-pressed="${value === round}" class="ghost ${value === round ? "active" : ""}">Раунд ${value}</button>`).join("")}</div>
-    <p class="muted">Голосов: ${result.votesCount}</p><div class="leaderboard">${result.leaderboard.map((talk, index) => `<div class="leader-row"><strong>${index + 1}</strong><div><strong>${esc(talk.title)}</strong><small>1-е: ${talk.stats.firstPlaces} · 2-е: ${talk.stats.secondPlaces} · 3-е: ${talk.stats.thirdPlaces}</small></div><span>${talk.stats.score}</span><span>баллов</span></div>`).join("") || '<p class="muted">В этом раунде нет участников.</p>'}</div>
+    <p class="muted">Голосов: ${result.votesCount}</p><div class="leaderboard">${result.leaderboard.map((talk, index) => `<div class="leader-row"><strong>${index + 1}</strong><div><strong>${esc(talk.title)}</strong>${talk.team ? `<small>${esc(talk.team)}</small>` : ""}<small>1-е: ${talk.stats.firstPlaces} · 2-е: ${talk.stats.secondPlaces} · 3-е: ${talk.stats.thirdPlaces}</small></div><span>${talk.stats.score}</span><span>баллов</span></div>`).join("") || '<p class="muted">В этом раунде нет участников.</p>'}</div>
     <h2>Голоса раунда ${round}</h2><div class="table-scroll"><table><thead><tr><th>Жюри</th><th>Выбор по местам</th><th>Комментарий</th></tr></thead><tbody>${votes.map(vote => `<tr><td>${esc(voters.get(vote.voterId) || "Общая ссылка")}</td><td>${voteTalkIds(vote).map((id, i) => `${i + 1}. ${esc(byId.get(id)?.title || "Удалённый доклад")}`).join("<br>")}</td><td>${esc(vote.comment || "")}</td></tr>`).join("") || '<tr><td colspan="3">Голосов не было.</td></tr>'}</tbody></table></div>
-    <details class="report-section"><summary>Вся программа · ${report.allTalks.length} докладов</summary>${report.allTalks.map(talk => `<div class="person-row"><div><strong>${esc(talk.title)}</strong></div></div>`).join("")}</details>`;
+    <details class="report-section"><summary>Вся программа · ${report.allTalks.length} докладов</summary>${report.allTalks.map(talk => `<div class="person-row"><div><strong>${esc(talk.title)}</strong>${talk.team ? `<small>${esc(talk.team)}</small>` : ""}</div></div>`).join("")}</details>`;
   detail.querySelectorAll("[data-history-round]").forEach(button => button.onclick = () => renderHistoryRound(Number(button.dataset.historyRound)));
 }
 setInterval(() => {
